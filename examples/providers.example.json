@@ -1,0 +1,35 @@
+{
+  "providers": [
+    {
+      "id": "chutes",
+      "name": "Chutes",
+      "type": "openai",
+      "baseUrl": "https://llm.chutes.ai/v1",
+      "apiKeyEnv": ["CHUTES_API_KEY", "COPILOT_CHUTES_API_KEY"],
+      "modelsUrl": "https://llm.chutes.ai/v1/models",
+      "catalogModelId": "gpt-4.1",
+      "requireToolSupport": true
+    },
+    {
+      "id": "opencode-go",
+      "aliases": ["go", "opencode"],
+      "name": "OpenCode Go",
+      "type": "anthropic",
+      "baseUrl": "https://opencode.ai/zen/go",
+      "apiKeyEnv": ["OPENCODE_GO_API_KEY", "OPENCODE_API_KEY"],
+      "modelsUrl": "https://opencode.ai/zen/go/v1/models",
+      "catalogModelId": "claude-sonnet-4.6"
+    },
+    {
+      "id": "fireworks",
+      "aliases": ["fire", "fireworks-ai"],
+      "name": "Fireworks AI",
+      "type": "anthropic",
+      "baseUrl": "https://api.fireworks.ai/inference",
+      "apiKeyEnv": ["FIREWORKS_API_KEY", "FIREWORKS_KEY"],
+      "modelsUrl": "https://api.fireworks.ai/v1/accounts/fireworks/models?filter=supports_serverless%3Dtrue&pageSize=200",
+      "catalogModelId": "claude-sonnet-4.6",
+      "requireToolSupport": true
+    }
+  ]
+}
