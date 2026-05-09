@@ -27,6 +27,29 @@ If your Copilot binary is not named `copilot`, set:
 COPILOT_BIN=/path/to/copilot
 ```
 
+## Installation
+
+Install globally from GitHub:
+
+```sh
+npm install -g github:TheStreamCode/copilot-byok-switcher
+```
+
+Then verify the CLI is available:
+
+```sh
+copilot-byok --help
+```
+
+For local development, clone the repository and link the CLI:
+
+```sh
+git clone https://github.com/TheStreamCode/copilot-byok-switcher.git
+cd copilot-byok-switcher
+npm link
+copilot-byok --help
+```
+
 ## Quick Start
 
 Run directly from the repository:
