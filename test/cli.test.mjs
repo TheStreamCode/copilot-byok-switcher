@@ -52,12 +52,28 @@ test('sanitizes provider source key environment variables', () => {
     CHUTES_API_KEY: 'secret',
     OPENCODE_GO_API_KEY: 'secret',
     FIREWORKS_API_KEY: 'secret',
+    DEEPSEEK_API_KEY: 'secret',
+    COPILOT_DEEPSEEK_API_KEY: 'secret',
+    ZAI_API_KEY: 'secret',
+    Z_AI_API_KEY: 'secret',
+    GLM_API_KEY: 'secret',
+    COPILOT_ZAI_API_KEY: 'secret',
+    MINIMAX_API_KEY: 'secret',
+    COPILOT_MINIMAX_API_KEY: 'secret',
   }, {});
 
   assert.equal(env.PATH, '/bin');
   assert.equal(Object.hasOwn(env, 'CHUTES_API_KEY'), false);
   assert.equal(Object.hasOwn(env, 'OPENCODE_GO_API_KEY'), false);
   assert.equal(Object.hasOwn(env, 'FIREWORKS_API_KEY'), false);
+  assert.equal(Object.hasOwn(env, 'DEEPSEEK_API_KEY'), false);
+  assert.equal(Object.hasOwn(env, 'COPILOT_DEEPSEEK_API_KEY'), false);
+  assert.equal(Object.hasOwn(env, 'ZAI_API_KEY'), false);
+  assert.equal(Object.hasOwn(env, 'Z_AI_API_KEY'), false);
+  assert.equal(Object.hasOwn(env, 'GLM_API_KEY'), false);
+  assert.equal(Object.hasOwn(env, 'COPILOT_ZAI_API_KEY'), false);
+  assert.equal(Object.hasOwn(env, 'MINIMAX_API_KEY'), false);
+  assert.equal(Object.hasOwn(env, 'COPILOT_MINIMAX_API_KEY'), false);
 });
 
 test('uses Windows shell for command shims', () => {

@@ -75,6 +75,9 @@ Run a BYOK provider:
 
 ```sh
 copilot-byok --provider chutes --no-model-prompt
+copilot-byok --provider deepseek --no-model-prompt
+copilot-byok --provider zai --no-model-prompt
+copilot-byok --provider minimax --no-model-prompt
 ```
 
 Pass a prompt to Copilot CLI:
@@ -95,6 +98,9 @@ List ranked models:
 copilot-byok --provider chutes --list-models
 copilot-byok --provider opencode-go --list-models
 copilot-byok --provider fireworks --list-models
+copilot-byok --provider deepseek --list-models
+copilot-byok --provider zai --list-models
+copilot-byok --provider minimax --list-models
 ```
 
 ## Built-In Providers
@@ -104,6 +110,9 @@ The CLI includes defaults for:
 - `chutes`
 - `opencode-go` aliases: `go`, `opencode`
 - `fireworks` aliases: `fire`, `fireworks-ai`
+- `deepseek` alias: `deepseek-ai`
+- `zai` aliases: `z-ai`, `glm`
+- `minimax` alias: `minimax-ai`
 
 API keys are read from environment variables. For example:
 
@@ -111,6 +120,9 @@ API keys are read from environment variables. For example:
 export CHUTES_API_KEY=...
 export OPENCODE_GO_API_KEY=...
 export FIREWORKS_API_KEY=...
+export DEEPSEEK_API_KEY=...
+export ZAI_API_KEY=...
+export MINIMAX_API_KEY=...
 ```
 
 PowerShell:
@@ -119,7 +131,18 @@ PowerShell:
 $env:CHUTES_API_KEY = "..."
 $env:OPENCODE_GO_API_KEY = "..."
 $env:FIREWORKS_API_KEY = "..."
+$env:DEEPSEEK_API_KEY = "..."
+$env:ZAI_API_KEY = "..."
+$env:MINIMAX_API_KEY = "..."
 ```
+
+Built-in provider defaults are based on the public provider documentation:
+
+| Provider | Base URL | Default model |
+|---|---|---|
+| DeepSeek AI | `https://api.deepseek.com` | `deepseek-v4-pro` |
+| Z.ai | `https://api.z.ai/api/coding/paas/v4` | `glm-4.7` |
+| MiniMax | `https://api.minimax.io/v1` | `MiniMax-M2.7` |
 
 ## Custom Provider Config
 

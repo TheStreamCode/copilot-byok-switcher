@@ -30,6 +30,39 @@
       "modelsUrl": "https://api.fireworks.ai/v1/accounts/fireworks/models?filter=supports_serverless%3Dtrue&pageSize=200",
       "catalogModelId": "claude-sonnet-4.6",
       "requireToolSupport": true
+    },
+    {
+      "id": "deepseek",
+      "aliases": ["deepseek-ai"],
+      "name": "DeepSeek AI",
+      "type": "openai",
+      "baseUrl": "https://api.deepseek.com",
+      "apiKeyEnv": ["DEEPSEEK_API_KEY", "COPILOT_DEEPSEEK_API_KEY"],
+      "modelsUrl": "https://api.deepseek.com/models",
+      "catalogModelId": "gpt-4.1",
+      "defaultModel": "deepseek-v4-pro"
+    },
+    {
+      "id": "zai",
+      "aliases": ["z-ai", "glm"],
+      "name": "Z.ai",
+      "type": "openai",
+      "baseUrl": "https://api.z.ai/api/coding/paas/v4",
+      "apiKeyEnv": ["ZAI_API_KEY", "Z_AI_API_KEY", "GLM_API_KEY", "COPILOT_ZAI_API_KEY"],
+      "modelsUrl": "https://api.z.ai/api/coding/paas/v4/models",
+      "catalogModelId": "gpt-4.1",
+      "defaultModel": "glm-4.7"
+    },
+    {
+      "id": "minimax",
+      "aliases": ["minimax-ai"],
+      "name": "MiniMax",
+      "type": "openai",
+      "baseUrl": "https://api.minimax.io/v1",
+      "apiKeyEnv": ["MINIMAX_API_KEY", "COPILOT_MINIMAX_API_KEY"],
+      "modelsUrl": "https://api.minimax.io/v1/models",
+      "catalogModelId": "gpt-4.1",
+      "defaultModel": "MiniMax-M2.7"
     }
   ]
 }

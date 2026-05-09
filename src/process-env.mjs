@@ -8,6 +8,14 @@ const DEFAULT_SECRET_SOURCE_ENV = new Set([
   'FIREWORKS_API_KEY',
   'FIREWORKS_KEY',
   'CLAUDE_FIRE_API_KEY',
+  'DEEPSEEK_API_KEY',
+  'COPILOT_DEEPSEEK_API_KEY',
+  'ZAI_API_KEY',
+  'Z_AI_API_KEY',
+  'GLM_API_KEY',
+  'COPILOT_ZAI_API_KEY',
+  'MINIMAX_API_KEY',
+  'COPILOT_MINIMAX_API_KEY',
 ]);
 
 export function sanitizeCopilotEnvironment(baseEnv, overlay = {}, stripEnvNames = []) {
