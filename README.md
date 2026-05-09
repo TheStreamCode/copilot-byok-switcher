@@ -138,11 +138,24 @@ $env:MINIMAX_API_KEY = "..."
 
 Built-in provider defaults are based on the public provider documentation:
 
-| Provider | Base URL | Default model |
-|---|---|---|
-| DeepSeek AI | `https://api.deepseek.com` | `deepseek-v4-pro` |
-| Z.ai | `https://api.z.ai/api/coding/paas/v4` | `glm-4.7` |
-| MiniMax | `https://api.minimax.io/v1` | `MiniMax-M2.7` |
+| Provider | Type | Base URL | Models URL | API key env | Default model |
+|---|---|---|---|---|---|
+| Chutes | `openai` | `https://llm.chutes.ai/v1` | `https://llm.chutes.ai/v1/models` | `CHUTES_API_KEY`, `COPILOT_CHUTES_API_KEY` | auto-ranked catalog model |
+| OpenCode Go | `anthropic` | `https://opencode.ai/zen/go` | `https://opencode.ai/zen/go/v1/models` | `OPENCODE_GO_API_KEY`, `OPENCODE_API_KEY`, `CLAUDE_GO_API_KEY` | auto-ranked catalog model |
+| Fireworks AI | `anthropic` | `https://api.fireworks.ai/inference` | `https://api.fireworks.ai/v1/accounts/fireworks/models?filter=supports_serverless%3Dtrue&pageSize=200` | `FIREWORKS_API_KEY`, `FIREWORKS_KEY`, `CLAUDE_FIRE_API_KEY` | auto-ranked serverless model |
+| DeepSeek AI | `openai` | `https://api.deepseek.com` | `https://api.deepseek.com/models` | `DEEPSEEK_API_KEY`, `COPILOT_DEEPSEEK_API_KEY` | `deepseek-v4-pro` |
+| Z.ai | `openai` | `https://api.z.ai/api/coding/paas/v4` | `https://api.z.ai/api/coding/paas/v4/models` | `ZAI_API_KEY`, `Z_AI_API_KEY`, `GLM_API_KEY`, `COPILOT_ZAI_API_KEY` | `glm-4.7` |
+| MiniMax | `openai` | `https://api.minimax.io/v1` | `https://api.minimax.io/v1/models` | `MINIMAX_API_KEY`, `COPILOT_MINIMAX_API_KEY` | `MiniMax-M2.7` |
+
+Provider-specific examples:
+
+```sh
+copilot-byok --provider deepseek --no-model-prompt -p "Explain this repository"
+copilot-byok --provider zai --model glm-4.7 -p "Reply exactly: OK"
+copilot-byok --provider minimax --model MiniMax-M2.7 -p "Summarize the latest diff"
+```
+
+Z.ai uses the Coding Plan endpoint by default because it is the endpoint documented for coding tools. If you need the general Z.ai API endpoint instead, create a custom provider with `baseUrl` set to `https://api.z.ai/api/paas/v4`.
 
 ## Custom Provider Config
 
