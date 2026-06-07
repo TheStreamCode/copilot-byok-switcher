@@ -264,3 +264,7 @@ Run a dry-run:
 ```sh
 copilot-byok --provider chutes --no-model-prompt --dry-run -p "hello"
 ```
+
+## Support
+
+If this CLI saves you time when testing Copilot BYOK providers, support continued maintenance through GitHub Sponsors: [github.com/sponsors/TheStreamCode](https://github.com/sponsors/TheStreamCode).
