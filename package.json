@@ -2,6 +2,16 @@
   "name": "copilot-byok-switcher",
   "version": "0.1.0",
   "description": "Cross-platform launcher for GitHub Copilot CLI custom model providers (BYOK), with interactive selection and automatic model defaults.",
+  "keywords": [
+    "github-copilot",
+    "copilot-cli",
+    "byok",
+    "bring-your-own-key",
+    "cli",
+    "model-switcher",
+    "ai-coding-agent",
+    "developer-tools"
+  ],
   "author": {
     "name": "Michael Gasperini",
     "url": "https://mikesoft.it"

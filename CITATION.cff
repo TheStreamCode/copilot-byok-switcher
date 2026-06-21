@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Copilot BYOK Switcher"
+authors:
+  - family-names: Gasperini
+    given-names: Michael
+url: "https://github.com/TheStreamCode/copilot-byok-switcher"
+version: "0.1.0"
+license: MIT
