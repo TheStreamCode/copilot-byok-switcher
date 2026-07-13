@@ -268,3 +268,7 @@ copilot-byok --provider chutes --no-model-prompt --dry-run -p "hello"
 ## Support
 
 If this CLI saves you time when testing Copilot BYOK providers, support continued maintenance through GitHub Sponsors: [github.com/sponsors/TheStreamCode](https://github.com/sponsors/TheStreamCode).
+
+## Third-Party Notice
+
+GitHub and GitHub Copilot are trademarks of GitHub, Inc. This project is not affiliated with or endorsed by GitHub.
