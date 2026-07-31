@@ -145,6 +145,29 @@ test('validates provider URLs, types, environment names, and identifiers', async
   await assert.rejects(() => loadConfigFromPath(configPath, {}), /Provider id/);
 });
 
+test('does not expose invalid credential environment names', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'copilot-byok-'));
+  const configPath = join(dir, 'providers.json');
+  await writeFile(configPath, JSON.stringify({
+    providers: [{
+      id: 'private-provider',
+      name: 'Private Provider',
+      type: 'openai',
+      baseUrl: 'https://api.example.com/v1',
+      apiKeyEnv: 'SENSITIVE CREDENTIAL SOURCE',
+    }],
+  }));
+
+  await assert.rejects(
+    () => loadConfigFromPath(configPath, {}),
+    (error) => {
+      assert.match(error.message, /invalid environment variable name/);
+      assert.doesNotMatch(error.message, /SENSITIVE CREDENTIAL SOURCE/);
+      return true;
+    }
+  );
+});
+
 test('rejects ambiguous provider identifiers', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'copilot-byok-'));
   const configPath = join(dir, 'providers.json');

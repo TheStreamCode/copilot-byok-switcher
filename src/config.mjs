@@ -308,7 +308,7 @@ function normalizeEnvNames(value, providerName, field) {
   ));
   for (const name of normalized) {
     if (!ENV_NAME_PATTERN.test(name)) {
-      throw new Error(`Provider ${providerName} ${field} contains invalid environment variable name "${name}"`);
+      throw new Error(`Provider ${providerName} ${field} contains an invalid environment variable name`);
     }
   }
 
