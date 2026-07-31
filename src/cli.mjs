@@ -38,7 +38,7 @@ export async function main(argv = process.argv.slice(2), io = defaultIo()) {
   }
 
   if (!args.listModels && !provider.apiKey && !provider.bearerToken) {
-    throw new Error(`Missing API key for ${provider.name}. Set one of: ${formatEnvNames(provider.apiKeyEnv || provider.bearerTokenEnv)}`);
+    throw new Error(`Missing API key for ${provider.name}. Configure an environment variable listed in the provider's apiKeyEnv or bearerTokenEnv setting.`);
   }
 
   if (args.wireApi && provider.type === 'anthropic') {
@@ -225,11 +225,6 @@ function redactEnv(env) {
     key,
     /KEY|TOKEN|SECRET|PASSWORD/i.test(key) ? '<redacted>' : value,
   ]));
-}
-
-function formatEnvNames(names) {
-  const values = Array.isArray(names) ? names : names ? [names] : [];
-  return values.join(', ') || 'provider apiKeyEnv';
 }
 
 function helpText() {

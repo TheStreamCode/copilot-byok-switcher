@@ -26,6 +26,40 @@ test('native mode does not require provider config to parse', async () => {
   assert.equal(JSON.parse(output.text()).native, true);
 });
 
+test('does not expose credential configuration in missing-key errors', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'copilot-byok-'));
+  const configPath = join(dir, 'providers.json');
+  await writeFile(configPath, JSON.stringify({
+    providers: [{
+      id: 'private-provider',
+      name: 'Private Provider',
+      type: 'openai',
+      baseUrl: 'https://api.example.com/v1',
+      apiKeyEnv: 'SENSITIVE_CREDENTIAL_SOURCE',
+      defaultModel: 'private-model',
+    }],
+  }));
+
+  await assert.rejects(
+    () => main([
+      '--config', configPath,
+      '--provider', 'private-provider',
+      '--model', 'private-model',
+      '--dry-run',
+    ], {
+      stdin: { isTTY: false },
+      stdout: captureWritable(),
+      stderr: captureWritable(),
+      env: {},
+    }),
+    (error) => {
+      assert.match(error.message, /Missing API key for Private Provider/);
+      assert.doesNotMatch(error.message, /SENSITIVE_CREDENTIAL_SOURCE/);
+      return true;
+    }
+  );
+});
+
 test('sanitizes stale Copilot BYOK env before launching child process', () => {
   const env = sanitizeCopilotEnvironment({
     PATH: '/bin',
