@@ -281,7 +281,14 @@ test('times out model catalog requests', async () => {
 
   const previousFetch = globalThis.fetch;
   globalThis.fetch = async (_url, { signal }) => new Promise((resolve, reject) => {
-    signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+    const watchdog = setTimeout(() => resolve({
+      ok: true,
+      json: async () => ({ data: [] }),
+    }), 1_000);
+    signal.addEventListener('abort', () => {
+      clearTimeout(watchdog);
+      reject(signal.reason);
+    }, { once: true });
   });
 
   try {
