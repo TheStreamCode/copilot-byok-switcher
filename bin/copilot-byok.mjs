@@ -4,6 +4,7 @@ import { main } from '../src/cli.mjs';
 main().then((exitCode) => {
   process.exitCode = exitCode;
 }).catch((error) => {
-  console.error(`copilot-byok: ${error.message}`);
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(`copilot-byok: ${message}`);
   process.exitCode = 1;
 });

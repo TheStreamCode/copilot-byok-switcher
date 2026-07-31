@@ -32,17 +32,28 @@
     "bin/",
     "src/",
     "examples/",
+    "docs/",
+    "schemas/",
+    "CHANGELOG.md",
     "README.md",
+    "SECURITY.md",
     "LICENSE"
   ],
   "scripts": {
     "test": "node --test",
-    "lint": "eslint ."
+    "test:coverage": "node --test --experimental-test-coverage",
+    "lint": "eslint .",
+    "check": "npm run lint && npm test",
+    "prepack": "npm run check"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.13.0"
   },
+  "funding": "https://github.com/sponsors/TheStreamCode",
   "license": "MIT",
+  "dependencies": {
+    "cross-spawn": "^7.0.6"
+  },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "eslint": "^10.8.0",

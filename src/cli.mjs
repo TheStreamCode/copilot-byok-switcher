@@ -1,11 +1,15 @@
-import { spawn } from 'node:child_process';
 import readline from 'node:readline/promises';
 
+import spawn from 'cross-spawn';
+
 import { parseArgs } from './args.mjs';
+import { resolveCopilotBin } from './copilot-bin.mjs';
 import { findProvider, loadConfig } from './config.mjs';
 import { rankModels } from './model-ranking.mjs';
 import { buildProviderEnvironment } from './provider-env.mjs';
 import { sanitizeCopilotEnvironment } from './process-env.mjs';
+
+const DEFAULT_MODEL_FETCH_TIMEOUT_MS = 10_000;
 
 export async function main(argv = process.argv.slice(2), io = defaultIo()) {
   const args = parseArgs(argv);
@@ -25,13 +29,20 @@ export async function main(argv = process.argv.slice(2), io = defaultIo()) {
   const provider = await resolveProvider({ config, requested: args.providerName, io });
 
   if (provider === 'native') {
+    if (args.offline || args.wireApi) {
+      throw new Error('--offline and --wire-api require a BYOK provider');
+    }
     const copilotArgs = [...args.copilotArgs];
     if (args.explicitModel) copilotArgs.unshift('--model', args.explicitModel);
     return runCopilot({ copilotArgs, env: {}, io, dryRun: args.dryRun, native: true });
   }
 
   if (!args.listModels && !provider.apiKey && !provider.bearerToken) {
-    throw new Error(`Missing API key for ${provider.name}. Set one of: ${formatEnvNames(provider.apiKeyEnv || provider.bearerTokenEnv)}`);
+    throw new Error(`Missing API key for ${provider.name}. Configure an environment variable listed in the provider's apiKeyEnv or bearerTokenEnv setting.`);
+  }
+
+  if (args.wireApi && provider.type === 'anthropic') {
+    throw new Error('--wire-api is available only for OpenAI-compatible BYOK providers');
   }
 
   const models = args.explicitModel ? [] : await loadProviderModels(provider, io, { strict: args.listModels });
@@ -42,7 +53,8 @@ export async function main(argv = process.argv.slice(2), io = defaultIo()) {
   }
 
   const wireModel = args.explicitModel || await selectModel({ provider, models, noPrompt: args.noModelPrompt, io });
-  const env = buildProviderEnvironment({ provider, wireModel });
+  const effectiveProvider = args.wireApi ? { ...provider, wireApi: args.wireApi } : provider;
+  const env = buildProviderEnvironment({ provider: effectiveProvider, wireModel, offline: args.offline });
   return runCopilot({ copilotArgs: args.copilotArgs, env, io, dryRun: args.dryRun, provider, wireModel, config });
 }
 
@@ -64,6 +76,8 @@ async function resolveProvider({ config, requested, io }) {
     return provider;
   }
 
+  if (config.providers.length === 0) return 'native';
+
   if (!io.stdin.isTTY || !io.stdout.isTTY) return 'native';
 
   io.stdout.write('\nSelect Copilot provider:\n');
@@ -76,7 +90,7 @@ async function resolveProvider({ config, requested, io }) {
       const answer = await rl.question(`Provider (1-${config.providers.length + 1}) [default: 1 ${config.providers[0].name}]: `);
       if (!answer.trim()) return config.providers[0];
 
-      const selected = Number.parseInt(answer, 10);
+      const selected = parseMenuSelection(answer);
       if (Number.isInteger(selected) && selected >= 1 && selected <= config.providers.length) return config.providers[selected - 1];
       if (selected === config.providers.length + 1) return 'native';
 
@@ -94,8 +108,12 @@ async function resolveProvider({ config, requested, io }) {
 async function loadProviderModels(provider, io, { strict = false } = {}) {
   if (!provider.modelsUrl) return provider.defaultModel ? [provider.defaultModel] : [];
 
+  const timeoutMs = provider.modelsTimeoutMs || DEFAULT_MODEL_FETCH_TIMEOUT_MS;
   try {
-    const response = await fetch(provider.modelsUrl, { headers: providerModelHeaders(provider) });
+    const response = await fetch(provider.modelsUrl, {
+      headers: providerModelHeaders(provider),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
     if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
     const payload = await response.json();
     const ranked = rankModels({ payload, requireToolSupport: provider.requireToolSupport === true });
@@ -103,17 +121,25 @@ async function loadProviderModels(provider, io, { strict = false } = {}) {
     if (strict && ranked.length === 0) throw new Error(`No models returned by ${provider.modelsUrl}`);
     return ranked;
   } catch (error) {
-    if (strict) throw error;
-    io.stderr.write(`Warning: could not refresh ${provider.name} models: ${error.message}\n`);
+    const errorName = error instanceof Error ? error.name : '';
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const detail = errorName === 'TimeoutError'
+      ? `request timed out after ${timeoutMs}ms`
+      : errorMessage;
+    if (strict) throw new Error(`Could not load ${provider.name} models: ${detail}`, { cause: error });
+    io.stderr.write(`Warning: could not refresh ${provider.name} models: ${detail}\n`);
     return provider.defaultModel ? [provider.defaultModel] : [];
   }
 }
 
 function providerModelHeaders(provider) {
   const headers = { ...(provider.modelsHeaders || {}) };
-  if (provider.modelsAuth === false) return headers;
+  if (provider.modelsAuth === false || provider.modelsAuth === 'none') return headers;
   const token = provider.bearerToken || provider.apiKey;
-  if (token && provider.modelsAuth !== 'none') headers.Authorization = `Bearer ${token}`;
+  if (!token) return headers;
+
+  const sameOrigin = new URL(provider.modelsUrl).origin === new URL(provider.baseUrl).origin;
+  if (sameOrigin || provider.modelsAuth === true) headers.Authorization = `Bearer ${token}`;
   return headers;
 }
 
@@ -133,7 +159,7 @@ async function selectModel({ provider, models, noPrompt, io }) {
       const answer = await rl.question(`Select model (1-${models.length}) [default: 1 ${defaultModel}]: `);
       if (!answer.trim()) return defaultModel;
 
-      const selected = Number.parseInt(answer, 10);
+      const selected = parseMenuSelection(answer);
       if (Number.isInteger(selected) && selected >= 1 && selected <= models.length) return models[selected - 1];
       io.stderr.write(`Invalid model: ${answer}\n`);
     }
@@ -143,7 +169,7 @@ async function selectModel({ provider, models, noPrompt, io }) {
 }
 
 function runCopilot({ copilotArgs, env, io, dryRun, provider, wireModel, native = false, config = null }) {
-  const copilotBin = io.env.COPILOT_BIN || 'copilot';
+  const copilotBin = resolveCopilotBin({ env: io.env });
 
   if (dryRun) {
     io.stdout.write(`${JSON.stringify({
@@ -168,11 +194,18 @@ function runCopilot({ copilotArgs, env, io, dryRun, provider, wireModel, native 
   });
 }
 
-export function buildCopilotSpawnOptions({ env, ioEnv = process.env, platform = process.platform, config = null }) {
+export function buildCopilotSpawnOptions({ env, ioEnv = process.env, config = null }) {
   return {
     env: sanitizeCopilotEnvironment(ioEnv, env, collectProviderSecretEnvNames(config)),
-    shell: platform === 'win32',
+    shell: false,
   };
+}
+
+function parseMenuSelection(value) {
+  const trimmed = value.trim();
+  if (!/^\d+$/.test(trimmed)) return null;
+  const selected = Number(trimmed);
+  return Number.isSafeInteger(selected) ? selected : null;
 }
 
 function collectProviderSecretEnvNames(config) {
@@ -194,11 +227,6 @@ function redactEnv(env) {
   ]));
 }
 
-function formatEnvNames(names) {
-  const values = Array.isArray(names) ? names : names ? [names] : [];
-  return values.join(', ') || 'provider apiKeyEnv';
-}
-
 function helpText() {
-  return `copilot-byok - switch GitHub Copilot CLI between native and BYOK providers\n\nUsage:\n  copilot-byok [options] [-- Copilot args...]\n\nOptions:\n  -P, --provider <id>       Provider id or alias\n      --native              Run GitHub Copilot CLI without BYOK\n  -m, --model <model>       Provider wire model for BYOK, native model for --native\n  -c, --config <path>       Provider config JSON path\n      --list-models         Print ranked models for the selected provider\n      --no-model-prompt     Use automatic default model\n      --dry-run             Print command/env without launching Copilot\n  -h, --help                Show this help\n\nExamples:\n  copilot-byok --provider chutes --no-model-prompt\n  copilot-byok --provider fireworks --model accounts/fireworks/models/minimax-m2p5 -p "fix the bug"\n  copilot-byok --native --model claude-sonnet-4.6\n`;
+  return `copilot-byok - switch GitHub Copilot CLI between native and BYOK providers\n\nUsage:\n  copilot-byok [options] [-- Copilot args...]\n\nOptions:\n  -P, --provider <id>       Provider id or alias\n      --native              Run GitHub Copilot CLI without BYOK\n  -m, --model <model>       Provider wire model for BYOK, native model for --native\n  -c, --config <path>       Provider config JSON path\n      --list-models         Print ranked models for the selected provider\n      --no-model-prompt     Use automatic default model\n      --offline             Prevent Copilot from contacting GitHub in BYOK mode\n      --wire-api <api>      BYOK wire API: completions or responses\n      --dry-run             Print command/env without launching Copilot\n  -h, --help                Show this help\n\nExamples:\n  copilot-byok --provider chutes --no-model-prompt\n  copilot-byok --provider openrouter --offline --no-model-prompt\n  copilot-byok --provider alibaba-token-plan --wire-api responses --no-model-prompt\n  copilot-byok --provider fireworks --model accounts/fireworks/models/minimax-m2p5 -p "fix the bug"\n  copilot-byok --native --model claude-sonnet-4.6\n`;
 }

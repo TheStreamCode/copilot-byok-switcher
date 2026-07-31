@@ -1,4 +1,5 @@
 {
+  "$schema": "../schemas/providers.schema.json",
   "providers": [
     {
       "id": "chutes",
@@ -43,6 +44,30 @@
       "defaultModel": "deepseek-v4-pro"
     },
     {
+      "id": "openrouter",
+      "aliases": ["or"],
+      "name": "OpenRouter",
+      "type": "openai",
+      "baseUrl": "https://openrouter.ai/api/v1",
+      "apiKeyEnv": ["OPENROUTER_API_KEY", "COPILOT_OPENROUTER_API_KEY"],
+      "modelsUrl": "https://openrouter.ai/api/v1/models?supported_parameters=tools&output_modalities=text",
+      "catalogModelId": "gpt-4.1",
+      "defaultModel": "openrouter/auto",
+      "requireToolSupport": true
+    },
+    {
+      "id": "moonshot",
+      "aliases": ["kimi", "moonshot-ai", "kimi-ai"],
+      "name": "Moonshot AI (Kimi)",
+      "type": "openai",
+      "baseUrl": "https://api.moonshot.ai/v1",
+      "apiKeyEnv": ["MOONSHOT_API_KEY", "KIMI_API_KEY", "COPILOT_MOONSHOT_API_KEY"],
+      "modelsUrl": "https://api.moonshot.ai/v1/models",
+      "catalogModelId": "gpt-4.1",
+      "defaultModel": "kimi-k3",
+      "requireToolSupport": true
+    },
+    {
       "id": "zai",
       "aliases": ["z-ai", "glm"],
       "name": "Z.ai",
@@ -51,7 +76,7 @@
       "apiKeyEnv": ["ZAI_API_KEY", "Z_AI_API_KEY", "GLM_API_KEY", "COPILOT_ZAI_API_KEY"],
       "modelsUrl": "https://api.z.ai/api/coding/paas/v4/models",
       "catalogModelId": "gpt-4.1",
-      "defaultModel": "glm-4.7"
+      "defaultModel": "glm-5.1"
     },
     {
       "id": "minimax",
@@ -63,6 +88,28 @@
       "modelsUrl": "https://api.minimax.io/v1/models",
       "catalogModelId": "gpt-4.1",
       "defaultModel": "MiniMax-M2.7"
+    },
+    {
+      "id": "alibaba-token-plan",
+      "aliases": ["alibaba", "qwen", "bailian", "dashscope", "modelstudio"],
+      "name": "Alibaba Model Studio Token Plan",
+      "type": "openai",
+      "baseUrl": "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+      "apiKeyEnv": ["ALIBABA_TOKEN_PLAN_API_KEY", "DASHSCOPE_TOKEN_PLAN_API_KEY", "BAILIAN_TOKEN_PLAN_API_KEY"],
+      "catalogModelId": "gpt-4.1",
+      "defaultModel": "qwen3.7-plus",
+      "requireToolSupport": true
+    },
+    {
+      "id": "tencent-token-plan",
+      "aliases": ["tencent", "tokenhub", "tencent-tokenhub"],
+      "name": "Tencent Cloud Token Plan",
+      "type": "openai",
+      "baseUrl": "https://api.lkeap.cloud.tencent.com/plan/v3",
+      "apiKeyEnv": ["TENCENT_TOKEN_PLAN_API_KEY", "TOKENHUB_TOKEN_PLAN_API_KEY"],
+      "catalogModelId": "gpt-4.1",
+      "defaultModel": "tc-code-latest",
+      "requireToolSupport": true
     }
   ]
 }

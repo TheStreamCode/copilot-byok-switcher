@@ -82,3 +82,48 @@ test('does not reject minimal model catalogs when tool metadata is absent', () =
 
   assert.deepEqual(models, ['provider/kimi-k2.6', 'provider/deepseek-v4-pro']);
 });
+
+test('honors requireToolSupport only when it is enabled', () => {
+  const payload = [{ id: 'chat-model', supported_features: ['json_mode'], state: 'ready' }];
+
+  assert.deepEqual(rankModels({ payload, requireToolSupport: false }), ['chat-model']);
+  assert.deepEqual(rankModels({ payload, requireToolSupport: true }), []);
+});
+
+test('accepts array catalogs and case-insensitive ready status values', () => {
+  const models = rankModels({
+    payload: [
+      { id: 'model-b', state: 'ready', status: { code: 'ok' } },
+      { id: 'model-a', state: 'failed', status: { code: 'ok' } },
+    ],
+  });
+
+  assert.deepEqual(models, ['model-b']);
+});
+
+test('understands OpenRouter modalities and tool parameter metadata', () => {
+  const models = rankModels({
+    payload: {
+      data: [
+        {
+          id: 'vendor/tool-model',
+          architecture: { input_modalities: ['text'] },
+          supported_parameters: ['tools', 'reasoning'],
+        },
+        {
+          id: 'vendor/image-only',
+          architecture: { input_modalities: ['image'] },
+          supported_parameters: ['tools'],
+        },
+        {
+          id: 'vendor/chat-only',
+          architecture: { input_modalities: ['text'] },
+          supported_parameters: ['temperature'],
+        },
+      ],
+    },
+    requireToolSupport: true,
+  });
+
+  assert.deepEqual(models, ['vendor/tool-model']);
+});
