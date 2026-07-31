@@ -17,9 +17,9 @@ test('separates Copilot catalog model from provider wire model', () => {
   assert.equal(env.COPILOT_PROVIDER_TYPE, 'openai');
   assert.equal(env.COPILOT_PROVIDER_BASE_URL, 'https://llm.chutes.ai/v1');
   assert.equal(env.COPILOT_PROVIDER_API_KEY, 'secret');
-  assert.equal(env.COPILOT_PROVIDER_MODEL_ID, 'gpt-4.1');
+  assert.equal(env.COPILOT_MODEL, 'gpt-4.1');
   assert.equal(env.COPILOT_PROVIDER_WIRE_MODEL, 'moonshotai/Kimi-K2.6-TEE');
-  assert.equal(Object.hasOwn(env, 'COPILOT_MODEL'), false);
+  assert.equal(Object.hasOwn(env, 'COPILOT_PROVIDER_MODEL_ID'), false);
 });
 
 test('passes explicit token limits when configured', () => {
@@ -37,4 +37,20 @@ test('passes explicit token limits when configured', () => {
 
   assert.equal(env.COPILOT_PROVIDER_MAX_PROMPT_TOKENS, '200000');
   assert.equal(env.COPILOT_PROVIDER_MAX_OUTPUT_TOKENS, '64000');
+});
+
+test('enables Copilot offline mode and the configured wire API', () => {
+  const env = buildProviderEnvironment({
+    provider: {
+      type: 'openai',
+      baseUrl: 'https://api.example.com/v1',
+      apiKey: 'secret',
+      wireApi: 'responses',
+    },
+    wireModel: 'custom-model',
+    offline: true,
+  });
+
+  assert.equal(env.COPILOT_PROVIDER_WIRE_API, 'responses');
+  assert.equal(env.COPILOT_OFFLINE, 'true');
 });

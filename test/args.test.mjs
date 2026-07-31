@@ -9,15 +9,35 @@ test('parses switcher options without passing them to Copilot', () => {
     'chutes',
     '--model',
     'moonshotai/Kimi-K2.6-TEE',
-    '--list-models',
     '-p',
     'hello',
   ]);
 
   assert.equal(parsed.providerName, 'chutes');
   assert.equal(parsed.explicitModel, 'moonshotai/Kimi-K2.6-TEE');
-  assert.equal(parsed.listModels, true);
+  assert.equal(parsed.listModels, false);
   assert.deepEqual(parsed.copilotArgs, ['-p', 'hello']);
+});
+
+test('rejects empty option values and incompatible model listing options', () => {
+  assert.throws(() => parseArgs(['--provider=']), /requires a provider id/);
+  assert.throws(() => parseArgs(['--model=']), /requires a model id/);
+  assert.throws(() => parseArgs(['--config=']), /requires a file path/);
+  assert.throws(() => parseArgs(['--native', '--list-models']), /requires a BYOK provider/);
+  assert.throws(
+    () => parseArgs(['--provider', 'chutes', '--model', 'model', '--list-models']),
+    /cannot be combined/
+  );
+  assert.throws(() => parseArgs(['--wire-api=invalid']), /must be completions or responses/);
+  assert.throws(() => parseArgs(['--native', '--offline']), /require a BYOK provider/);
+});
+
+test('parses offline mode and a Responses API override', () => {
+  const parsed = parseArgs(['--provider', 'openrouter', '--offline', '--wire-api', 'RESPONSES']);
+
+  assert.equal(parsed.offline, true);
+  assert.equal(parsed.wireApi, 'responses');
+  assert.deepEqual(parsed.copilotArgs, []);
 });
 
 test('keeps native Copilot --model argument in native mode', () => {

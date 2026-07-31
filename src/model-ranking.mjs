@@ -43,6 +43,7 @@ export function rankModels({ payload, requireToolSupport = false } = {}) {
 }
 
 function getModelItems(payload) {
+  if (Array.isArray(payload)) return payload;
   if (!payload || typeof payload !== 'object') return [];
   return [
     ...(Array.isArray(payload.data) ? payload.data : []),
@@ -63,9 +64,17 @@ function isUsableModel(model, id, requireToolSupport) {
     return false;
   }
 
+  if (
+    Array.isArray(model.architecture?.input_modalities) &&
+    model.architecture.input_modalities.length > 0 &&
+    !model.architecture.input_modalities.includes('text')
+  ) {
+    return false;
+  }
+
   if (model.supportsServerless === false || model.supports_serverless === false) return false;
-  if (typeof model.state === 'string' && model.state && model.state !== 'READY') return false;
-  if (typeof model.status?.code === 'string' && model.status.code && model.status.code !== 'OK') return false;
+  if (typeof model.state === 'string' && model.state && model.state.toUpperCase() !== 'READY') return false;
+  if (typeof model.status?.code === 'string' && model.status.code && model.status.code.toUpperCase() !== 'OK') return false;
 
   let hasToolMetadata = false;
   let hasToolSupport = false;
@@ -73,14 +82,20 @@ function isUsableModel(model, id, requireToolSupport) {
   if (Array.isArray(model.supported_features) && model.supported_features.length > 0) {
     hasToolMetadata = true;
     hasToolSupport = model.supported_features.includes('tools');
-    if (!hasToolSupport) return false;
+    if (requireToolSupport && !hasToolSupport) return false;
+  }
+
+  if (Array.isArray(model.supported_parameters) && model.supported_parameters.length > 0) {
+    hasToolMetadata = true;
+    hasToolSupport = hasToolSupport || model.supported_parameters.includes('tools');
+    if (requireToolSupport && !hasToolSupport) return false;
   }
 
   const hasConversationConfig = Boolean(model.conversationConfig || model.conversation_config);
   if (model.supportsTools != null || model.supports_tools != null || hasConversationConfig) {
     hasToolMetadata = true;
     hasToolSupport = hasToolSupport || model.supportsTools === true || model.supports_tools === true || hasConversationConfig;
-    if (!hasToolSupport) return false;
+    if (requireToolSupport && !hasToolSupport) return false;
   }
 
   if (requireToolSupport && hasToolMetadata && !hasToolSupport) return false;

@@ -1,7 +1,17 @@
 # Security Policy
 
+## Supported versions
+
+Security fixes are applied to the latest release only.
+
+## Reporting a vulnerability
+
 Please do not report security vulnerabilities through public GitHub issues.
 
-Email security concerns to info@mikesoft.it with a clear description, affected version, and reproduction details.
+Email security concerns to info@mikesoft.it with the affected version, impact, reproduction steps, and any suggested mitigation. You should receive an acknowledgement within five business days.
 
-This tool reads and writes local GitHub Copilot CLI configuration and may handle provider API keys. It does not transmit your keys anywhere; review configuration changes before applying them, especially in shared or untrusted environments.
+## Secret handling
+
+This launcher reads provider credentials from environment variables and passes the selected credential to the child GitHub Copilot CLI process. Copilot then sends it to the configured provider. Authenticated model-catalog requests are made directly by this launcher; credentials are sent automatically only when the catalog and API share the same origin, unless `modelsAuth: true` explicitly opts in to cross-origin authentication.
+
+The launcher does not write credentials to disk. Provider configuration files reject inline API keys, bearer tokens, and secret-bearing model headers. Review custom provider URLs before use and do not run untrusted configurations.

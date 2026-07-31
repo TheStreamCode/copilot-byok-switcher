@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/TheStreamCode/copilot-byok-switcher/main/schemas/providers.schema.json",
+  "title": "Copilot BYOK Switcher providers",
+  "type": "object",
+  "required": ["providers"],
+  "properties": {
+    "providers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/provider" }
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "envName": {
+      "type": "string",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+    },
+    "envNames": {
+      "oneOf": [
+        { "$ref": "#/$defs/envName" },
+        {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/envName" }
+        }
+      ]
+    },
+    "provider": {
+      "type": "object",
+      "required": ["name", "type", "baseUrl"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+        },
+        "name": { "type": "string", "minLength": 1 },
+        "aliases": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+          }
+        },
+        "type": { "enum": ["openai", "anthropic", "azure"] },
+        "baseUrl": { "type": "string", "format": "uri", "pattern": "^https?://" },
+        "apiKeyEnv": { "$ref": "#/$defs/envNames" },
+        "bearerTokenEnv": { "$ref": "#/$defs/envNames" },
+        "modelsUrl": { "type": "string", "format": "uri", "pattern": "^https?://" },
+        "modelsAuth": { "enum": [true, false, "none"] },
+        "modelsHeaders": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "modelsTimeoutMs": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 300000
+        },
+        "catalogModelId": { "type": "string", "minLength": 1 },
+        "defaultModel": { "type": "string", "minLength": 1 },
+        "wireApi": { "enum": ["completions", "responses"] },
+        "maxPromptTokens": { "type": "integer", "minimum": 1 },
+        "maxOutputTokens": { "type": "integer", "minimum": 1 },
+        "requireToolSupport": { "type": "boolean" }
+      },
+      "additionalProperties": true,
+      "allOf": [
+        {
+          "if": {
+            "properties": { "type": { "const": "anthropic" } },
+            "required": ["type"]
+          },
+          "then": { "not": { "required": ["wireApi"] } }
+        }
+      ]
+    }
+  }
+}

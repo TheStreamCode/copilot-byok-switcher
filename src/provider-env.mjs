@@ -1,12 +1,12 @@
-export function buildProviderEnvironment({ provider, wireModel }) {
+export function buildProviderEnvironment({ provider, wireModel, offline = false }) {
   if (!provider?.type) throw new Error('Provider type is required');
   if (!provider?.baseUrl) throw new Error('Provider baseUrl is required');
   if (!wireModel) throw new Error('Provider wire model is required');
 
   const env = {
+    COPILOT_MODEL: provider.catalogModelId || wireModel,
     COPILOT_PROVIDER_TYPE: provider.type,
     COPILOT_PROVIDER_BASE_URL: provider.baseUrl,
-    COPILOT_PROVIDER_MODEL_ID: provider.catalogModelId || wireModel,
     COPILOT_PROVIDER_WIRE_MODEL: wireModel,
   };
 
@@ -28,6 +28,10 @@ export function buildProviderEnvironment({ provider, wireModel }) {
 
   if (provider.maxOutputTokens != null) {
     env.COPILOT_PROVIDER_MAX_OUTPUT_TOKENS = String(provider.maxOutputTokens);
+  }
+
+  if (offline) {
+    env.COPILOT_OFFLINE = 'true';
   }
 
   return env;
