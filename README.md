@@ -1,5 +1,8 @@
 # copilot-byok-switcher
 
+[![npm version](https://img.shields.io/npm/v/copilot-byok-switcher)](https://www.npmjs.com/package/copilot-byok-switcher)
+[![CI](https://github.com/TheStreamCode/copilot-byok-switcher/actions/workflows/ci.yml/badge.svg)](https://github.com/TheStreamCode/copilot-byok-switcher/actions/workflows/ci.yml)
+
 Cross-platform launcher for GitHub Copilot CLI custom model providers (BYOK), with interactive selection and automatic model defaults.
 
 Created by [Michael Gasperini](https://mikesoft.it).
@@ -33,10 +36,22 @@ COPILOT_BIN=/path/to/copilot
 
 ## Installation
 
-Install globally from GitHub:
+Install the latest stable release from npm:
 
 ```sh
-npm install -g github:TheStreamCode/copilot-byok-switcher
+npm install -g copilot-byok-switcher
+```
+
+To pin the current release explicitly:
+
+```sh
+npm install -g copilot-byok-switcher@0.1.0
+```
+
+The same version can be installed directly from its GitHub tag:
+
+```sh
+npm install -g github:TheStreamCode/copilot-byok-switcher#v0.1.0
 ```
 
 Then verify the CLI is available:
@@ -44,6 +59,10 @@ Then verify the CLI is available:
 ```sh
 copilot-byok --help
 ```
+
+See the [npm package](https://www.npmjs.com/package/copilot-byok-switcher) and
+[GitHub releases](https://github.com/TheStreamCode/copilot-byok-switcher/releases)
+for published versions and release notes.
 
 For local development, clone the repository and link the CLI:
 

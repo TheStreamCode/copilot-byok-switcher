@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-08-01
+
+- Published the first stable package to npm and created the matching GitHub
+  release and version tag.
 - Added a standard `.gitattributes` file to normalize line endings across platforms (`* text=auto eol=lf`, with binary markers for image/vsix assets).
 - Added documented built-in presets for OpenRouter, Moonshot AI/Kimi, Alibaba Model Studio Token Plan, and Tencent Cloud Token Plan.
 - Updated the Z.ai Coding Plan fallback to `glm-5.1`.
@@ -17,7 +21,6 @@ All notable changes to this project are documented in this file.
 - Improved model ranking for OpenRouter metadata and provider catalogs returned as arrays.
 - Expanded tests, package checks, security documentation, and CI coverage for Node.js 22/24 on Windows, macOS, and Linux.
 - Pinned GitHub Actions to immutable commits and removed the inactive Dependabot auto-merge workflow.
-
-## 0.1.0
-
-- Initial release: cross-platform launcher for GitHub Copilot CLI custom model providers (BYOK), with interactive provider selection, automatic model defaults, and isolated provider environment handling.
+- Initial release: cross-platform launcher for GitHub Copilot CLI custom model
+  providers (BYOK), with interactive provider selection, automatic model
+  defaults, and isolated provider environment handling.
