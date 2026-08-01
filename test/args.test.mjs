@@ -32,6 +32,16 @@ test('rejects empty option values and incompatible model listing options', () =>
   assert.throws(() => parseArgs(['--native', '--offline']), /require a BYOK provider/);
 });
 
+test('parses help and version flags without forwarding them to Copilot', () => {
+  assert.equal(parseArgs(['-h']).help, true);
+  assert.equal(parseArgs(['--help']).help, true);
+  assert.equal(parseArgs(['-v']).version, true);
+
+  const parsed = parseArgs(['--version']);
+  assert.equal(parsed.version, true);
+  assert.deepEqual(parsed.copilotArgs, []);
+});
+
 test('parses offline mode and a Responses API override', () => {
   const parsed = parseArgs(['--provider', 'openrouter', '--offline', '--wire-api', 'RESPONSES']);
 

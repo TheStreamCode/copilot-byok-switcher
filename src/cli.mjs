@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import readline from 'node:readline/promises';
 
 import spawn from 'cross-spawn';
@@ -16,6 +17,11 @@ export async function main(argv = process.argv.slice(2), io = defaultIo()) {
 
   if (args.help) {
     io.stdout.write(helpText());
+    return 0;
+  }
+
+  if (args.version) {
+    io.stdout.write(`${await readPackageVersion()}\n`);
     return 0;
   }
 
@@ -185,13 +191,27 @@ function runCopilot({ copilotArgs, env, io, dryRun, provider, wireModel, native 
 
   return new Promise((resolve, reject) => {
     const child = spawn(copilotBin, copilotArgs, {
-      ...buildCopilotSpawnOptions({ env, ioEnv: io.env, platform: process.platform, config }),
+      ...buildCopilotSpawnOptions({ env, ioEnv: io.env, config }),
       stdio: 'inherit',
     });
 
-    child.on('error', reject);
+    child.on('error', (error) => reject(describeSpawnError(error, copilotBin)));
     child.on('exit', (code) => resolve(code ?? 1));
   });
+}
+
+function describeSpawnError(error, copilotBin) {
+  if (error?.code !== 'ENOENT') return error;
+
+  return new Error(
+    `Could not launch GitHub Copilot CLI at "${copilotBin}". Install it with "npm install -g @github/copilot" or set COPILOT_BIN to the executable path.`,
+    { cause: error }
+  );
+}
+
+async function readPackageVersion() {
+  const manifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+  return manifest.version;
 }
 
 export function buildCopilotSpawnOptions({ env, ioEnv = process.env, config = null }) {
@@ -228,5 +248,5 @@ function redactEnv(env) {
 }
 
 function helpText() {
-  return `copilot-byok - switch GitHub Copilot CLI between native and BYOK providers\n\nUsage:\n  copilot-byok [options] [-- Copilot args...]\n\nOptions:\n  -P, --provider <id>       Provider id or alias\n      --native              Run GitHub Copilot CLI without BYOK\n  -m, --model <model>       Provider wire model for BYOK, native model for --native\n  -c, --config <path>       Provider config JSON path\n      --list-models         Print ranked models for the selected provider\n      --no-model-prompt     Use automatic default model\n      --offline             Prevent Copilot from contacting GitHub in BYOK mode\n      --wire-api <api>      BYOK wire API: completions or responses\n      --dry-run             Print command/env without launching Copilot\n  -h, --help                Show this help\n\nExamples:\n  copilot-byok --provider chutes --no-model-prompt\n  copilot-byok --provider openrouter --offline --no-model-prompt\n  copilot-byok --provider alibaba-token-plan --wire-api responses --no-model-prompt\n  copilot-byok --provider fireworks --model accounts/fireworks/models/minimax-m2p5 -p "fix the bug"\n  copilot-byok --native --model claude-sonnet-4.6\n`;
+  return `copilot-byok - switch GitHub Copilot CLI between native and BYOK providers\n\nUsage:\n  copilot-byok [options] [-- Copilot args...]\n\nOptions:\n  -P, --provider <id>       Provider id or alias\n      --native              Run GitHub Copilot CLI without BYOK\n  -m, --model <model>       Provider wire model for BYOK, native model for --native\n  -c, --config <path>       Provider config JSON path\n      --list-models         Print ranked models for the selected provider\n      --no-model-prompt     Use automatic default model\n      --offline             Prevent Copilot from contacting GitHub in BYOK mode\n      --wire-api <api>      BYOK wire API: completions or responses\n      --dry-run             Print command/env without launching Copilot\n  -h, --help                Show this help\n  -v, --version             Print the copilot-byok version\n\nExamples:\n  copilot-byok --provider chutes --no-model-prompt\n  copilot-byok --provider openrouter --offline --no-model-prompt\n  copilot-byok --provider alibaba-token-plan --wire-api responses --no-model-prompt\n  copilot-byok --provider fireworks --model accounts/fireworks/models/minimax-m2p5 -p "fix the bug"\n  copilot-byok --native --model claude-sonnet-4.6\n`;
 }

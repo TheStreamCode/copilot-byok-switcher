@@ -9,6 +9,7 @@ export function parseArgs(argv) {
     wireApi: null,
     dryRun: false,
     help: false,
+    version: false,
     copilotArgs: [],
   };
 
@@ -22,6 +23,11 @@ export function parseArgs(argv) {
 
     if (arg === '--help' || arg === '-h') {
       result.help = true;
+      continue;
+    }
+
+    if (arg === '--version' || arg === '-v') {
+      result.version = true;
       continue;
     }
 

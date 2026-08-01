@@ -2,12 +2,42 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { Writable } from 'node:stream';
+import { Readable, Writable } from 'node:stream';
 import test from 'node:test';
 
-import { main } from '../src/cli.mjs';
-import { buildCopilotSpawnOptions } from '../src/cli.mjs';
+import { buildCopilotSpawnOptions, main } from '../src/cli.mjs';
 import { sanitizeCopilotEnvironment } from '../src/process-env.mjs';
+
+const packageVersion = JSON.parse(
+  await readFile(new URL('../package.json', import.meta.url), 'utf8')
+).version;
+
+test('prints help without touching provider config', async () => {
+  const output = captureWritable();
+  const exitCode = await main(['--help'], {
+    stdin: { isTTY: false },
+    stdout: output,
+    stderr: captureWritable(),
+    env: { COPILOT_BYOK_CONFIG: join(tmpdir(), 'does-not-exist.json') },
+  });
+
+  assert.equal(exitCode, 0);
+  assert.match(output.text(), /^copilot-byok - switch GitHub Copilot CLI/);
+  assert.match(output.text(), /-v, --version/);
+});
+
+test('prints the package version', async () => {
+  const output = captureWritable();
+  const exitCode = await main(['--version'], {
+    stdin: { isTTY: false },
+    stdout: output,
+    stderr: captureWritable(),
+    env: {},
+  });
+
+  assert.equal(exitCode, 0);
+  assert.equal(output.text(), `${packageVersion}\n`);
+});
 
 test('native mode does not require provider config to parse', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'copilot-byok-'));
@@ -340,7 +370,66 @@ test('times out model catalog requests', async () => {
   }
 });
 
-function captureWritable() {
+test('selects a provider from the interactive menu', async () => {
+  const configPath = await writeProviderFixture();
+  const output = captureWritable({ isTTY: true });
+
+  const exitCode = await main(['--config', configPath, '--no-model-prompt', '--dry-run'], {
+    stdin: readableTty(['2']),
+    stdout: output,
+    stderr: captureWritable(),
+    env: { SECOND_PROVIDER_KEY: 'secret' },
+  });
+
+  const text = output.text();
+  const result = JSON.parse(text.slice(text.indexOf('{\n')));
+  assert.equal(exitCode, 0);
+  assert.match(text, /2\) Second Provider/);
+  assert.equal(result.provider, 'Second Provider');
+  assert.equal(result.wireModel, 'second-model');
+  assert.equal(result.env.COPILOT_PROVIDER_API_KEY, '<redacted>');
+});
+
+test('selects a ranked model from the interactive menu', async () => {
+  const configPath = await writeProviderFixture();
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({
+    ok: true,
+    json: async () => ({ data: [{ id: 'model-a' }, { id: 'model-b' }] }),
+  });
+
+  const output = captureWritable({ isTTY: true });
+  try {
+    const exitCode = await main(['--config', configPath, '--provider', 'first', '--dry-run'], {
+      stdin: readableTty(['2']),
+      stdout: output,
+      stderr: captureWritable(),
+      env: { FIRST_PROVIDER_KEY: 'secret' },
+    });
+
+    const text = output.text();
+    const result = JSON.parse(text.slice(text.indexOf('{\n')));
+    assert.equal(exitCode, 0);
+    assert.match(text, /Available First Provider models/);
+    assert.equal(result.wireModel, 'model-b');
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test('explains how to install Copilot CLI when the binary is missing', async () => {
+  await assert.rejects(
+    () => main(['--native'], {
+      stdin: { isTTY: false },
+      stdout: captureWritable(),
+      stderr: captureWritable(),
+      env: { COPILOT_BIN: join(tmpdir(), 'copilot-byok-missing-binary') },
+    }),
+    /Could not launch GitHub Copilot CLI/
+  );
+});
+
+function captureWritable({ isTTY = false } = {}) {
   let buffer = '';
   const stream = new Writable({
     write(chunk, encoding, callback) {
@@ -348,6 +437,41 @@ function captureWritable() {
       callback();
     },
   });
+  stream.isTTY = isTTY;
   stream.text = () => buffer;
   return stream;
+}
+
+function readableTty(lines) {
+  const stream = Readable.from(lines.map((line) => `${line}\n`), { objectMode: false });
+  stream.isTTY = true;
+  return stream;
+}
+
+async function writeProviderFixture() {
+  const dir = await mkdtemp(join(tmpdir(), 'copilot-byok-'));
+  const configPath = join(dir, 'providers.json');
+  await writeFile(configPath, JSON.stringify({
+    providers: [
+      {
+        id: 'first',
+        name: 'First Provider',
+        type: 'openai',
+        baseUrl: 'https://api.first.example/v1',
+        modelsUrl: 'https://api.first.example/v1/models',
+        apiKeyEnv: 'FIRST_PROVIDER_KEY',
+        defaultModel: 'first-model',
+      },
+      {
+        id: 'second',
+        name: 'Second Provider',
+        type: 'openai',
+        baseUrl: 'https://api.second.example/v1',
+        apiKeyEnv: 'SECOND_PROVIDER_KEY',
+        defaultModel: 'second-model',
+      },
+    ],
+  }));
+
+  return configPath;
 }
