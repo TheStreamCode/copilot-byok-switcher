@@ -4,6 +4,38 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-01
+
+### Added
+
+- `-v` / `--version` prints the installed `copilot-byok` version. The flag is consumed by the switcher and is
+  no longer forwarded to GitHub Copilot CLI; use `-- --version` to pass it through.
+- A `Command-Line Options` table, a `Project Structure` section, and explicit `Release Process`,
+  `Contributing`, `Security`, `Changelog`, and `License` sections in `README.md`.
+- `AGENTS.md` with the project-specific stack, commands, security rules, provider checklist, validation gate,
+  and release process for contributors and AI agents.
+- Node.js engine and license badges in `README.md`.
+- Tests for `--help`, `--version`, interactive provider selection, interactive model selection, and the
+  missing-binary error path (39 tests to 45; line coverage 87.3% to 93.0%).
+
+### Changed
+
+- A missing or unreachable Copilot executable now fails with an actionable message naming the resolved path
+  and the install command, instead of a raw `spawn ... ENOENT`.
+- CI runs on pushes to `main` and to `v*` tags, on pull requests, and on manual dispatch, removing the
+  duplicate workflow run that every pull-request branch previously triggered.
+- The security contact link in the issue-template chooser points to `SECURITY.md` instead of a generic site URL.
+
+### Fixed
+
+- Removed a dead `platform` argument passed to `buildCopilotSpawnOptions`, which does not accept it.
+
+### Internal
+
+- ESLint ignores `coverage/`, so `npm run lint` after `npm run test:coverage` no longer depends on cleanup.
+- `.gitignore` covers `*.tgz` (`npm pack` output) and `Thumbs.db`.
+- Consolidated the duplicated `src/cli.mjs` import in `test/cli.test.mjs`.
+
 ## [0.1.0] - 2026-08-01
 
 - Published the first stable package to npm and created the matching GitHub

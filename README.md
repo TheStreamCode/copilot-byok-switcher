@@ -2,6 +2,8 @@
 
 [![npm version](https://img.shields.io/npm/v/copilot-byok-switcher)](https://www.npmjs.com/package/copilot-byok-switcher)
 [![CI](https://github.com/TheStreamCode/copilot-byok-switcher/actions/workflows/ci.yml/badge.svg)](https://github.com/TheStreamCode/copilot-byok-switcher/actions/workflows/ci.yml)
+[![node-current](https://img.shields.io/node/v/copilot-byok-switcher)](https://nodejs.org)
+[![license](https://img.shields.io/npm/l/copilot-byok-switcher)](LICENSE)
 
 Cross-platform launcher for GitHub Copilot CLI custom model providers (BYOK), with interactive selection and automatic model defaults.
 
@@ -42,21 +44,22 @@ Install the latest stable release from npm:
 npm install -g copilot-byok-switcher
 ```
 
-To pin the current release explicitly:
+To pin an exact release explicitly:
 
 ```sh
-npm install -g copilot-byok-switcher@0.1.0
+npm install -g copilot-byok-switcher@0.2.0
 ```
 
 The same version can be installed directly from its GitHub tag:
 
 ```sh
-npm install -g github:TheStreamCode/copilot-byok-switcher#v0.1.0
+npm install -g github:TheStreamCode/copilot-byok-switcher#v0.2.0
 ```
 
 Then verify the CLI is available:
 
 ```sh
+copilot-byok --version
 copilot-byok --help
 ```
 
@@ -131,6 +134,24 @@ copilot-byok --provider minimax --list-models
 copilot-byok --provider openrouter --list-models
 copilot-byok --provider moonshot --list-models
 ```
+
+## Command-Line Options
+
+| Option | Description |
+|---|---|
+| `-P`, `--provider <id>` | Provider id or alias. |
+| `--native` | Run GitHub Copilot CLI without BYOK. |
+| `-m`, `--model <model>` | Provider wire model for BYOK, native model for `--native`. |
+| `-c`, `--config <path>` | Provider config JSON path. |
+| `--list-models` | Print ranked models for the selected provider. |
+| `--no-model-prompt` | Use the automatic default model. |
+| `--offline` | Prevent Copilot from contacting GitHub in BYOK mode. |
+| `--wire-api <api>` | BYOK wire API: `completions` or `responses`. |
+| `--dry-run` | Print the resolved command and environment without launching Copilot. |
+| `-h`, `--help` | Show the help text. |
+| `-v`, `--version` | Print the `copilot-byok` version. |
+
+Any other argument, and everything after `--`, is forwarded unchanged to GitHub Copilot CLI.
 
 ## Built-In Providers
 
@@ -332,9 +353,51 @@ copilot-byok --provider chutes --no-model-prompt --dry-run -p "hello"
 
 See [Provider verification](docs/provider-verification.md) for the latest reproducible test matrix. It distinguishes endpoint reachability, authenticated catalog access, and complete Copilot CLI inference; these are intentionally not treated as equivalent claims.
 
+## Project Structure
+
+```text
+bin/       Executable entry point (copilot-byok)
+src/       CLI modules: argument parsing, config, model ranking, environment building
+test/      node:test suites, one per src module
+schemas/   JSON Schema for provider configuration files
+examples/  Ready-to-copy provider configuration example
+docs/      Provider verification matrix
+```
+
+## Release Process
+
+Releases are cut from `main` after CI passes on every supported platform:
+
+```sh
+npm run check
+npm pack --dry-run
+npm publish
+git tag v<version>
+git push origin v<version>
+gh release create v<version> --title "Copilot BYOK Switcher <version>" --notes-file <notes>
+```
+
+`package.json`, `CITATION.cff`, `CHANGELOG.md`, and the pinned versions in this README must all reference the same version before a release.
+
+## Contributing
+
+Issues and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for the local quality gate and the requirements for provider changes, and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for expected conduct. Automation and AI agents should also read [AGENTS.md](AGENTS.md).
+
+## Security
+
+Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md). Do not open public issues for security reports and never include real API keys in issues, pull requests, or configuration examples.
+
+## Changelog
+
+Released changes are documented in [CHANGELOG.md](CHANGELOG.md).
+
 ## Support
 
 If this CLI saves you time when testing Copilot BYOK providers, support continued maintenance through GitHub Sponsors: [github.com/sponsors/TheStreamCode](https://github.com/sponsors/TheStreamCode).
+
+## License
+
+[MIT](LICENSE) © Michael Gasperini (Mikesoft).
 
 ## Third-Party Notice
 
