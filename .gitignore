@@ -4,4 +4,6 @@ npm-debug.log*
 .env.*
 !.env.example
 coverage/
+*.tgz
 .DS_Store
+Thumbs.db
