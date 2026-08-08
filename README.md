@@ -401,9 +401,12 @@ When no `--model` is provided, the CLI fetches the provider model catalog and ra
 Run the complete local quality gate:
 
 ```sh
-npm run check
+npm ci
+npm run lint
+npm test
 npm run test:coverage
 npm pack --dry-run
+npm audit --omit=dev --audit-level=high
 ```
 
 Run a dry-run:
@@ -427,18 +430,21 @@ docs/      Provider verification matrix and troubleshooting guide
 
 ## Release Process
 
-Releases are cut from `main` after CI passes on every supported platform:
+Prepare a release on a branch with `npm version <version> --no-git-tag-version`, then synchronize `package.json`, `package-lock.json`, `CITATION.cff`, `CHANGELOG.md`, and the pinned versions in this README. Run the complete validation gate before requesting approval.
+
+After the pull request is approved, merged into `main`, and CI passes on every supported platform, release from the exact `main` commit:
 
 ```sh
-npm run check
+git switch main
+git pull --ff-only origin main
 npm pack --dry-run
-npm publish
 git tag v<version>
 git push origin v<version>
 gh release create v<version> --title "Copilot BYOK Switcher <version>" --notes-file <notes>
+npm publish
 ```
 
-`package.json`, `CITATION.cff`, `CHANGELOG.md`, and the pinned versions in this README must all reference the same version before a release.
+Tagging, GitHub Release creation, and npm publication are separate states. Verify the remote tag and release commit, the npm `latest` version and `gitHead`, and a clean install of the published CLI before announcing completion.
 
 ## Contributing
 

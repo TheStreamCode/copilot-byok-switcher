@@ -9,6 +9,7 @@ npm ci
 npm run check
 npm run test:coverage
 npm pack --dry-run
+npm audit --omit=dev --audit-level=high
 ```
 
 Development requires Node.js 22.13 or newer. Keep changes focused and covered by tests under `test/`. The CLI must remain cross-platform across Windows, macOS, and Linux.
