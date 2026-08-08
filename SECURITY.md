@@ -12,6 +12,6 @@ Email security concerns to info@mikesoft.it with the affected version, impact, r
 
 ## Secret handling
 
-This launcher reads provider credentials from environment variables and passes the selected credential to the child GitHub Copilot CLI process. Copilot then sends it to the configured provider. Authenticated model-catalog requests are made directly by this launcher; credentials are sent automatically only when the catalog and API share the same origin, unless `modelsAuth: true` explicitly opts in to cross-origin authentication.
+This launcher reads provider credentials from environment variables and passes the selected credential to the child GitHub Copilot CLI process. Copilot then sends it to the configured provider. Authenticated model-catalog requests are made directly by this launcher; credentials are sent automatically only when the catalog and API share the same origin. Cross-origin catalog authentication requires an explicit `modelsAuth` mode: `bearer`, `x-api-key`, or `api-key`; `true` remains a backward-compatible alias for `bearer`.
 
 The launcher does not write credentials to disk. Provider configuration files reject inline API keys, bearer tokens, and secret-bearing model headers. Review custom provider URLs before use and do not run untrusted configurations.

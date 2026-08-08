@@ -11,6 +11,8 @@ All notable changes to this project are documented in this file.
 - Built-in presets for OpenAI, Anthropic, local Ollama, Groq, xAI, Mistral AI, the Z.ai pay-as-you-go API, and the OpenAI-compatible OpenCode Go endpoint.
 - Optional provider authentication through `authRequired: false`, catalog authentication modes for bearer, `x-api-key`, and `api-key`, model include/exclude prefixes, transport selection, and Azure API version forwarding.
 - A 5 MiB model-catalog response limit and model-id validation against terminal control characters and excessive lengths.
+- A troubleshooting guide covering Copilot discovery, provider credentials, Ollama, catalog timeouts, and model compatibility.
+- A 1280×640 repository social-preview asset.
 
 ### Changed
 
@@ -18,6 +20,8 @@ All notable changes to this project are documented in this file.
 - A configured `defaultModel` is now the actual automatic default, ahead of ranked catalog alternatives.
 - Model ranking filters non-chat output modalities and additional image, video, moderation, realtime, transcription, speech, and safety model families, and understands nested capability/context metadata.
 - Updated Z.ai Coding Plan to `glm-5.2`, MiniMax to `MiniMax-M3`, ESLint to 10.8.1, globals to 17.9.0, and the fixed `brace-expansion` transitive release.
+- Reworked the top of the README around installation, native/cloud/local quick starts, and the project's security-focused purpose.
+- Aligned security, contribution, pull-request, and agent guidance with explicit catalog authentication modes and intentionally authless providers.
 
 ### Security
 

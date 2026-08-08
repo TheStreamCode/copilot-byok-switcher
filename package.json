@@ -1,7 +1,7 @@
 {
   "name": "copilot-byok-switcher",
   "version": "0.3.0",
-  "description": "Cross-platform launcher for GitHub Copilot CLI custom model providers (BYOK), with interactive selection and automatic model defaults.",
+  "description": "Safely switch GitHub Copilot CLI between native mode and BYOK providers without storing credentials or modifying your shell.",
   "keywords": [
     "github-copilot",
     "copilot-cli",
@@ -10,7 +10,13 @@
     "cli",
     "model-switcher",
     "ai-coding-agent",
-    "developer-tools"
+    "developer-tools",
+    "openai",
+    "anthropic",
+    "ollama",
+    "llm",
+    "nodejs",
+    "cross-platform"
   ],
   "author": {
     "name": "Michael Gasperini",

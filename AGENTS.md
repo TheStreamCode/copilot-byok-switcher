@@ -87,8 +87,9 @@ This project handles third-party provider API keys. Every change must preserve t
 - Never print, log, or embed a credential value. `--dry-run` output must keep passing through `redactEnv()`,
   which masks any key matching `/KEY|TOKEN|SECRET|PASSWORD/i`.
 - Error messages must not reveal which environment variable holds a secret (covered by a test).
-- Model-catalog requests send the bearer token only when the catalog URL is same-origin with `baseUrl`,
-  or when the provider explicitly sets `modelsAuth: true`. Do not weaken this default.
+- Model-catalog requests send credentials only when the catalog URL is same-origin with `baseUrl`,
+  or when the provider explicitly sets an authenticated `modelsAuth` mode (`bearer`, `x-api-key`, or
+  `api-key`; `true` remains a bearer alias). Do not weaken this default.
 - `sanitizeCopilotEnvironment()` strips `COPILOT_PROVIDER_*` and every known provider source key
   (case-insensitively) from the child environment. New built-in providers **must** have their key
   environment names added to `DEFAULT_SECRET_SOURCE_ENV` in `src/process-env.mjs`.
@@ -101,12 +102,15 @@ This project handles third-party provider API keys. Every change must preserve t
 ## Adding or changing a built-in provider
 
 1. Add the preset to `DEFAULT_PROVIDERS` in `src/config.mjs`, using only endpoints documented by the provider.
-2. Add every credential environment name to `DEFAULT_SECRET_SOURCE_ENV` in `src/process-env.mjs`.
+2. For authenticated providers, add every credential environment name to `DEFAULT_SECRET_SOURCE_ENV` in
+   `src/process-env.mjs`. For intentionally authless providers, set `authRequired: false` and do not invent
+   a credential environment name.
 3. Mirror the entry in `examples/providers.example.json`.
 4. Add the row to the provider table in `README.md` **with a link to the official API documentation**.
 5. Update `docs/provider-verification.md` honestly: endpoint reachability, authenticated catalog access, and
    end-to-end inference are three distinct evidence levels. Never claim a level that was not actually verified.
-6. Extend `test/config.test.mjs` to cover the id, aliases, base URL, and credential environment names.
+6. Extend `test/config.test.mjs` to cover the id, aliases, base URL, model behavior, authentication requirement,
+   and credential environment names when applicable.
 
 `catalogModelId` must be a model that exists in Copilot's built-in catalog (for `COPILOT_MODEL`);
 the provider's own model name goes on the wire as `COPILOT_PROVIDER_WIRE_MODEL`. Do not merge the two.

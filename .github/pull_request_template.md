@@ -20,7 +20,8 @@ Fixes #
 - [ ] PR is focused on a single concern
 - [ ] README.md updated if user-facing behavior changed
 - [ ] No API keys or credentials in code or examples
-- [ ] New provider entries include base URL, env var, and default model
+- [ ] New provider entries document the base URL, model behavior, and authentication requirements
+- [ ] Credential environment names are registered and tested when authentication is required
 
 ## Notes
 

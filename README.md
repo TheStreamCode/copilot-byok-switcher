@@ -1,15 +1,38 @@
-# copilot-byok-switcher
+# Copilot BYOK Switcher
 
 [![npm version](https://img.shields.io/npm/v/copilot-byok-switcher)](https://www.npmjs.com/package/copilot-byok-switcher)
 [![CI](https://github.com/TheStreamCode/copilot-byok-switcher/actions/workflows/ci.yml/badge.svg)](https://github.com/TheStreamCode/copilot-byok-switcher/actions/workflows/ci.yml)
 [![node-current](https://img.shields.io/node/v/copilot-byok-switcher)](https://nodejs.org)
 [![license](https://img.shields.io/npm/l/copilot-byok-switcher)](LICENSE)
 
-Cross-platform launcher for GitHub Copilot CLI custom model providers (BYOK), with interactive selection and automatic model defaults.
+**Safely switch GitHub Copilot CLI between native mode and BYOK providers without storing credentials or modifying your shell profile.**
+
+```sh
+npm install -g copilot-byok-switcher
+```
 
 Created by [Michael Gasperini](https://mikesoft.it).
 
-It lets you run GitHub Copilot CLI through native Copilot or a configurable OpenAI/Anthropic-compatible provider without permanently changing your shell environment.
+Use native Copilot, a built-in cloud provider, a local Ollama model, or any configurable OpenAI-, Anthropic-, or Azure-compatible endpoint.
+
+## Quick Start
+
+```sh
+# Native GitHub Copilot CLI
+copilot-byok --native
+
+# Cloud BYOK provider (reads the provider key from its environment variable)
+copilot-byok --provider openai --no-model-prompt
+
+# Local Ollama model (no API key required)
+copilot-byok --provider ollama --model qwen3-coder
+```
+
+Run `copilot-byok --help` for all options. See [Built-In Providers](#built-in-providers) for credential variables and officially documented endpoints.
+
+## Why this exists
+
+GitHub Copilot CLI supports custom model providers through `COPILOT_*` environment variables, but configuring them manually is repetitive and easy to get wrong. Copilot BYOK Switcher builds those variables only for the child Copilot process, keeps provider model names separate from Copilot's catalog model, and selects compatible defaults without changing the user's persistent environment.
 
 ## Features
 
@@ -76,7 +99,7 @@ npm link
 copilot-byok --help
 ```
 
-## Quick Start
+## Usage Examples
 
 Run directly from the repository:
 
@@ -399,7 +422,7 @@ src/       CLI modules: argument parsing, config, model ranking, environment bui
 test/      node:test suites, one per src module
 schemas/   JSON Schema for provider configuration files
 examples/  Ready-to-copy provider configuration example
-docs/      Provider verification matrix
+docs/      Provider verification matrix and troubleshooting guide
 ```
 
 ## Release Process
@@ -430,6 +453,8 @@ Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md). Do 
 Released changes are documented in [CHANGELOG.md](CHANGELOG.md).
 
 ## Support
+
+For common setup and provider problems, read the [troubleshooting guide](docs/troubleshooting.md). Search the [existing issues](https://github.com/TheStreamCode/copilot-byok-switcher/issues) before opening a new report. Suggest providers or share sanitized compatibility results in the [provider requests discussion](https://github.com/TheStreamCode/copilot-byok-switcher/discussions/14).
 
 If this CLI saves you time when testing Copilot BYOK providers, support continued maintenance through GitHub Sponsors: [github.com/sponsors/TheStreamCode](https://github.com/sponsors/TheStreamCode).
 
