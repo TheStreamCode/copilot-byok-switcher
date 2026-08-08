@@ -43,6 +43,10 @@ jobs:
         if: matrix.os == 'ubuntu-latest' && matrix.node == 24
         run: npm audit --omit=dev --audit-level=high
 
+      - name: Audit all dependencies
+        if: matrix.os == 'ubuntu-latest' && matrix.node == 24
+        run: npm audit --audit-level=high
+
       - name: Verify package contents
         if: matrix.os == 'ubuntu-latest' && matrix.node == 24
         run: npm pack --dry-run

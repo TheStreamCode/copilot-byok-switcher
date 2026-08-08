@@ -6,6 +6,9 @@ const ENV_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const PROVIDER_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const PROVIDER_TYPES = new Set(['openai', 'anthropic', 'azure']);
 const WIRE_APIS = new Set(['completions', 'responses']);
+const TRANSPORTS = new Set(['http', 'websockets']);
+const MODELS_AUTH_MODES = new Set([true, false, 'none', 'bearer', 'x-api-key', 'api-key']);
+const SECRET_QUERY_NAME_PATTERN = /(^|[-_.])(api[-_.]?key|subscription[-_.]?key|auth(?:orization)?|bearer|credential|password|secret|signature|sig|token)([-_.]|$)/i;
 
 const DEFAULT_PROVIDERS = [
   {
@@ -27,6 +30,8 @@ const DEFAULT_PROVIDERS = [
     apiKeyEnv: ['OPENCODE_GO_API_KEY', 'OPENCODE_API_KEY', 'CLAUDE_GO_API_KEY'],
     modelsUrl: 'https://opencode.ai/zen/go/v1/models',
     catalogModelId: 'claude-sonnet-4.6',
+    defaultModel: 'minimax-m3',
+    modelIncludePrefixes: ['minimax-', 'qwen'],
     requireToolSupport: false,
   },
   {
@@ -78,13 +83,13 @@ const DEFAULT_PROVIDERS = [
   {
     id: 'zai',
     aliases: ['z-ai', 'glm'],
-    name: 'Z.ai',
+    name: 'Z.ai Coding Plan',
     type: 'openai',
     baseUrl: 'https://api.z.ai/api/coding/paas/v4',
     apiKeyEnv: ['ZAI_API_KEY', 'Z_AI_API_KEY', 'GLM_API_KEY', 'COPILOT_ZAI_API_KEY'],
     modelsUrl: 'https://api.z.ai/api/coding/paas/v4/models',
     catalogModelId: 'gpt-4.1',
-    defaultModel: 'glm-5.1',
+    defaultModel: 'glm-5.2',
   },
   {
     id: 'minimax',
@@ -95,7 +100,7 @@ const DEFAULT_PROVIDERS = [
     apiKeyEnv: ['MINIMAX_API_KEY', 'COPILOT_MINIMAX_API_KEY'],
     modelsUrl: 'https://api.minimax.io/v1/models',
     catalogModelId: 'gpt-4.1',
-    defaultModel: 'MiniMax-M2.7',
+    defaultModel: 'MiniMax-M3',
   },
   {
     id: 'alibaba-token-plan',
@@ -122,6 +127,98 @@ const DEFAULT_PROVIDERS = [
     catalogModelId: 'gpt-4.1',
     defaultModel: 'tc-code-latest',
     requireToolSupport: true,
+  },
+  {
+    id: 'openai',
+    name: 'OpenAI',
+    type: 'openai',
+    baseUrl: 'https://api.openai.com/v1',
+    apiKeyEnv: ['OPENAI_API_KEY', 'COPILOT_OPENAI_API_KEY'],
+    modelsUrl: 'https://api.openai.com/v1/models',
+    catalogModelId: 'gpt-4.1',
+    defaultModel: 'gpt-5.6-sol',
+    wireApi: 'responses',
+  },
+  {
+    id: 'anthropic',
+    aliases: ['claude'],
+    name: 'Anthropic',
+    type: 'anthropic',
+    baseUrl: 'https://api.anthropic.com',
+    apiKeyEnv: ['ANTHROPIC_API_KEY', 'COPILOT_ANTHROPIC_API_KEY'],
+    modelsUrl: 'https://api.anthropic.com/v1/models',
+    modelsAuth: 'x-api-key',
+    modelsHeaders: { 'anthropic-version': '2023-06-01' },
+    catalogModelId: 'claude-sonnet-4.6',
+    defaultModel: 'claude-sonnet-4-6',
+  },
+  {
+    id: 'ollama',
+    name: 'Ollama',
+    type: 'openai',
+    baseUrl: 'http://localhost:11434/v1',
+    authRequired: false,
+    modelsUrl: 'http://localhost:11434/v1/models',
+    catalogModelId: 'gpt-4.1',
+  },
+  {
+    id: 'opencode-go-openai',
+    aliases: ['go-openai', 'opencode-chat'],
+    name: 'OpenCode Go (OpenAI)',
+    type: 'openai',
+    baseUrl: 'https://opencode.ai/zen/go/v1',
+    apiKeyEnv: ['OPENCODE_GO_API_KEY', 'OPENCODE_API_KEY', 'CLAUDE_GO_API_KEY'],
+    modelsUrl: 'https://opencode.ai/zen/go/v1/models',
+    catalogModelId: 'gpt-4.1',
+    defaultModel: 'deepseek-v4-pro',
+    modelIncludePrefixes: ['grok-', 'glm-', 'kimi-', 'deepseek-', 'mimo-', 'hy'],
+    requireToolSupport: false,
+  },
+  {
+    id: 'groq',
+    name: 'Groq',
+    type: 'openai',
+    baseUrl: 'https://api.groq.com/openai/v1',
+    apiKeyEnv: ['GROQ_API_KEY', 'COPILOT_GROQ_API_KEY'],
+    modelsUrl: 'https://api.groq.com/openai/v1/models',
+    catalogModelId: 'gpt-4.1',
+    defaultModel: 'openai/gpt-oss-120b',
+    requireToolSupport: true,
+  },
+  {
+    id: 'xai',
+    aliases: ['grok'],
+    name: 'xAI',
+    type: 'openai',
+    baseUrl: 'https://api.x.ai/v1',
+    apiKeyEnv: ['XAI_API_KEY', 'COPILOT_XAI_API_KEY'],
+    modelsUrl: 'https://api.x.ai/v1/models',
+    catalogModelId: 'gpt-4.1',
+    defaultModel: 'grok-4.5',
+    requireToolSupport: true,
+  },
+  {
+    id: 'mistral',
+    aliases: ['mistral-ai'],
+    name: 'Mistral AI',
+    type: 'openai',
+    baseUrl: 'https://api.mistral.ai/v1',
+    apiKeyEnv: ['MISTRAL_API_KEY', 'COPILOT_MISTRAL_API_KEY'],
+    modelsUrl: 'https://api.mistral.ai/v1/models',
+    catalogModelId: 'gpt-4.1',
+    defaultModel: 'devstral-latest',
+    requireToolSupport: true,
+  },
+  {
+    id: 'zai-api',
+    aliases: ['zai-payg', 'glm-api'],
+    name: 'Z.ai API',
+    type: 'openai',
+    baseUrl: 'https://api.z.ai/api/paas/v4',
+    apiKeyEnv: ['ZAI_API_KEY', 'Z_AI_API_KEY', 'GLM_API_KEY', 'COPILOT_ZAI_API_KEY'],
+    modelsUrl: 'https://api.z.ai/api/paas/v4/models',
+    catalogModelId: 'gpt-4.1',
+    defaultModel: 'glm-5.2',
   },
 ];
 
@@ -195,12 +292,20 @@ function normalizeProvider(provider, env, index) {
   const wireApi = provider.wireApi == null
     ? undefined
     : requiredString(provider.wireApi, `Provider ${name} wireApi must be a non-empty string`).toLowerCase();
+  const transport = provider.transport == null
+    ? undefined
+    : requiredString(provider.transport, `Provider ${name} transport must be a non-empty string`).toLowerCase();
+  const azureApiVersion = provider.azureApiVersion == null
+    ? undefined
+    : requiredString(provider.azureApiVersion, `Provider ${name} azureApiVersion must be a non-empty string`);
+  const modelIncludePrefixes = normalizeStringList(provider.modelIncludePrefixes, name, 'modelIncludePrefixes');
+  const modelExcludePrefixes = normalizeStringList(provider.modelExcludePrefixes, name, 'modelExcludePrefixes');
 
-  if (provider.apiKey) {
+  if (Object.hasOwn(provider, 'apiKey')) {
     throw new Error(`Inline apiKey is not allowed for provider ${name}. Use apiKeyEnv instead.`);
   }
 
-  if (provider.bearerToken) {
+  if (Object.hasOwn(provider, 'bearerToken')) {
     throw new Error(`Inline bearerToken is not allowed for provider ${name}. Use bearerTokenEnv instead.`);
   }
 
@@ -218,6 +323,10 @@ function normalizeProvider(provider, env, index) {
     ...(apiKeyEnv ? { apiKeyEnv } : {}),
     ...(bearerTokenEnv ? { bearerTokenEnv } : {}),
     ...(wireApi ? { wireApi } : {}),
+    ...(transport ? { transport } : {}),
+    ...(azureApiVersion ? { azureApiVersion } : {}),
+    ...(modelIncludePrefixes ? { modelIncludePrefixes } : {}),
+    ...(modelExcludePrefixes ? { modelExcludePrefixes } : {}),
     apiKey: readFirstEnv(env, apiKeyEnv),
     bearerToken: readFirstEnv(env, bearerTokenEnv),
   };
@@ -238,6 +347,17 @@ function validateProviderOptions(provider, name, type) {
     }
   }
 
+  if (provider.transport != null) {
+    const transport = requiredString(provider.transport, `Provider ${name} transport must be a non-empty string`).toLowerCase();
+    if (!TRANSPORTS.has(transport)) {
+      throw new Error(`Provider ${name} transport must be "http" or "websockets"`);
+    }
+  }
+
+  if (provider.azureApiVersion != null) {
+    requiredString(provider.azureApiVersion, `Provider ${name} azureApiVersion must be a non-empty string`);
+  }
+
   for (const field of ['maxPromptTokens', 'maxOutputTokens']) {
     if (provider[field] != null && (!Number.isInteger(provider[field]) || provider[field] <= 0)) {
       throw new Error(`Provider ${name} ${field} must be a positive integer`);
@@ -256,8 +376,12 @@ function validateProviderOptions(provider, name, type) {
     throw new Error(`Provider ${name} requireToolSupport must be a boolean`);
   }
 
-  if (provider.modelsAuth != null && ![true, false, 'none'].includes(provider.modelsAuth)) {
-    throw new Error(`Provider ${name} modelsAuth must be true, false, or "none"`);
+  if (provider.authRequired != null && typeof provider.authRequired !== 'boolean') {
+    throw new Error(`Provider ${name} authRequired must be a boolean`);
+  }
+
+  if (provider.modelsAuth != null && !MODELS_AUTH_MODES.has(provider.modelsAuth)) {
+    throw new Error(`Provider ${name} modelsAuth must be true, false, "none", "bearer", "x-api-key", or "api-key"`);
   }
 
   if (provider.modelsHeaders != null) {
@@ -277,7 +401,7 @@ function rejectSecretModelHeaders(provider, name) {
   const headers = provider.modelsHeaders || {};
   for (const [headerName, value] of Object.entries(headers)) {
     const combined = `${headerName}: ${value}`;
-    if (/authorization|api[-_]?key|token|secret|bearer/i.test(combined)) {
+    if (/authorization|cookie|session|credential|password|api[-_]?key|token|secret|bearer|x-auth/i.test(combined)) {
       throw new Error(`Secret model headers are not allowed for provider ${name}. Use apiKeyEnv or bearerTokenEnv instead.`);
     }
   }
@@ -315,6 +439,19 @@ function normalizeEnvNames(value, providerName, field) {
   return Array.isArray(value) ? [...new Set(normalized)] : normalized[0];
 }
 
+function normalizeStringList(value, providerName, field) {
+  if (value == null) return undefined;
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Error(`Provider ${providerName} ${field} must be a non-empty array`);
+  }
+
+  const normalized = value.map((entry) => requiredString(
+    entry,
+    `Provider ${providerName} ${field} must contain non-empty strings`
+  ));
+  return [...new Set(normalized)];
+}
+
 function assertUniqueProviderNames(providers) {
   const claimed = new Map();
   for (const provider of providers) {
@@ -347,6 +484,11 @@ function validateHttpUrl(value, label) {
   }
   if (url.username || url.password) {
     throw new Error(`${label} must not contain embedded credentials`);
+  }
+  for (const name of url.searchParams.keys()) {
+    if (SECRET_QUERY_NAME_PATTERN.test(name)) {
+      throw new Error(`${label} must not contain credential-like query parameters`);
+    }
   }
 
   return url.href.replace(/\/$/, '');
@@ -381,8 +523,9 @@ async function fileExists(path) {
   try {
     await access(path);
     return true;
-  } catch {
-    return false;
+  } catch (error) {
+    if (error?.code === 'ENOENT') return false;
+    throw error;
   }
 }
 

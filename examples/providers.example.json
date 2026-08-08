@@ -2,6 +2,39 @@
   "$schema": "../schemas/providers.schema.json",
   "providers": [
     {
+      "id": "openai",
+      "name": "OpenAI",
+      "type": "openai",
+      "baseUrl": "https://api.openai.com/v1",
+      "apiKeyEnv": ["OPENAI_API_KEY", "COPILOT_OPENAI_API_KEY"],
+      "modelsUrl": "https://api.openai.com/v1/models",
+      "catalogModelId": "gpt-4.1",
+      "defaultModel": "gpt-5.6-sol",
+      "wireApi": "responses"
+    },
+    {
+      "id": "anthropic",
+      "aliases": ["claude"],
+      "name": "Anthropic",
+      "type": "anthropic",
+      "baseUrl": "https://api.anthropic.com",
+      "apiKeyEnv": ["ANTHROPIC_API_KEY", "COPILOT_ANTHROPIC_API_KEY"],
+      "modelsUrl": "https://api.anthropic.com/v1/models",
+      "modelsAuth": "x-api-key",
+      "modelsHeaders": { "anthropic-version": "2023-06-01" },
+      "catalogModelId": "claude-sonnet-4.6",
+      "defaultModel": "claude-sonnet-4-6"
+    },
+    {
+      "id": "ollama",
+      "name": "Ollama",
+      "type": "openai",
+      "baseUrl": "http://localhost:11434/v1",
+      "authRequired": false,
+      "modelsUrl": "http://localhost:11434/v1/models",
+      "catalogModelId": "gpt-4.1"
+    },
+    {
       "id": "chutes",
       "name": "Chutes",
       "type": "openai",
@@ -19,7 +52,21 @@
       "baseUrl": "https://opencode.ai/zen/go",
       "apiKeyEnv": ["OPENCODE_GO_API_KEY", "OPENCODE_API_KEY"],
       "modelsUrl": "https://opencode.ai/zen/go/v1/models",
-      "catalogModelId": "claude-sonnet-4.6"
+      "catalogModelId": "claude-sonnet-4.6",
+      "defaultModel": "minimax-m3",
+      "modelIncludePrefixes": ["minimax-", "qwen"]
+    },
+    {
+      "id": "opencode-go-openai",
+      "aliases": ["go-openai", "opencode-chat"],
+      "name": "OpenCode Go (OpenAI)",
+      "type": "openai",
+      "baseUrl": "https://opencode.ai/zen/go/v1",
+      "apiKeyEnv": ["OPENCODE_GO_API_KEY", "OPENCODE_API_KEY"],
+      "modelsUrl": "https://opencode.ai/zen/go/v1/models",
+      "catalogModelId": "gpt-4.1",
+      "defaultModel": "deepseek-v4-pro",
+      "modelIncludePrefixes": ["grok-", "glm-", "kimi-", "deepseek-", "mimo-", "hy"]
     },
     {
       "id": "fireworks",
@@ -42,6 +89,41 @@
       "modelsUrl": "https://api.deepseek.com/models",
       "catalogModelId": "gpt-4.1",
       "defaultModel": "deepseek-v4-pro"
+    },
+    {
+      "id": "groq",
+      "name": "Groq",
+      "type": "openai",
+      "baseUrl": "https://api.groq.com/openai/v1",
+      "apiKeyEnv": ["GROQ_API_KEY", "COPILOT_GROQ_API_KEY"],
+      "modelsUrl": "https://api.groq.com/openai/v1/models",
+      "catalogModelId": "gpt-4.1",
+      "defaultModel": "openai/gpt-oss-120b",
+      "requireToolSupport": true
+    },
+    {
+      "id": "xai",
+      "aliases": ["grok"],
+      "name": "xAI",
+      "type": "openai",
+      "baseUrl": "https://api.x.ai/v1",
+      "apiKeyEnv": ["XAI_API_KEY", "COPILOT_XAI_API_KEY"],
+      "modelsUrl": "https://api.x.ai/v1/models",
+      "catalogModelId": "gpt-4.1",
+      "defaultModel": "grok-4.5",
+      "requireToolSupport": true
+    },
+    {
+      "id": "mistral",
+      "aliases": ["mistral-ai"],
+      "name": "Mistral AI",
+      "type": "openai",
+      "baseUrl": "https://api.mistral.ai/v1",
+      "apiKeyEnv": ["MISTRAL_API_KEY", "COPILOT_MISTRAL_API_KEY"],
+      "modelsUrl": "https://api.mistral.ai/v1/models",
+      "catalogModelId": "gpt-4.1",
+      "defaultModel": "devstral-latest",
+      "requireToolSupport": true
     },
     {
       "id": "openrouter",
@@ -70,13 +152,24 @@
     {
       "id": "zai",
       "aliases": ["z-ai", "glm"],
-      "name": "Z.ai",
+      "name": "Z.ai Coding Plan",
       "type": "openai",
       "baseUrl": "https://api.z.ai/api/coding/paas/v4",
       "apiKeyEnv": ["ZAI_API_KEY", "Z_AI_API_KEY", "GLM_API_KEY", "COPILOT_ZAI_API_KEY"],
       "modelsUrl": "https://api.z.ai/api/coding/paas/v4/models",
       "catalogModelId": "gpt-4.1",
-      "defaultModel": "glm-5.1"
+      "defaultModel": "glm-5.2"
+    },
+    {
+      "id": "zai-api",
+      "aliases": ["zai-payg", "glm-api"],
+      "name": "Z.ai API",
+      "type": "openai",
+      "baseUrl": "https://api.z.ai/api/paas/v4",
+      "apiKeyEnv": ["ZAI_API_KEY", "Z_AI_API_KEY", "GLM_API_KEY", "COPILOT_ZAI_API_KEY"],
+      "modelsUrl": "https://api.z.ai/api/paas/v4/models",
+      "catalogModelId": "gpt-4.1",
+      "defaultModel": "glm-5.2"
     },
     {
       "id": "minimax",
@@ -87,7 +180,7 @@
       "apiKeyEnv": ["MINIMAX_API_KEY", "COPILOT_MINIMAX_API_KEY"],
       "modelsUrl": "https://api.minimax.io/v1/models",
       "catalogModelId": "gpt-4.1",
-      "defaultModel": "MiniMax-M2.7"
+      "defaultModel": "MiniMax-M3"
     },
     {
       "id": "alibaba-token-plan",

@@ -54,3 +54,22 @@ test('enables Copilot offline mode and the configured wire API', () => {
   assert.equal(env.COPILOT_PROVIDER_WIRE_API, 'responses');
   assert.equal(env.COPILOT_OFFLINE, 'true');
 });
+
+test('prefers bearer authentication and passes transport-specific settings', () => {
+  const env = buildProviderEnvironment({
+    provider: {
+      type: 'azure',
+      baseUrl: 'https://example.openai.azure.com',
+      apiKey: 'api-secret',
+      bearerToken: 'bearer-secret',
+      transport: 'websockets',
+      azureApiVersion: '2025-04-01-preview',
+    },
+    wireModel: 'deployment-name',
+  });
+
+  assert.equal(env.COPILOT_PROVIDER_BEARER_TOKEN, 'bearer-secret');
+  assert.equal(Object.hasOwn(env, 'COPILOT_PROVIDER_API_KEY'), false);
+  assert.equal(env.COPILOT_PROVIDER_TRANSPORT, 'websockets');
+  assert.equal(env.COPILOT_PROVIDER_AZURE_API_VERSION, '2025-04-01-preview');
+});

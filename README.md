@@ -47,13 +47,13 @@ npm install -g copilot-byok-switcher
 To pin an exact release explicitly:
 
 ```sh
-npm install -g copilot-byok-switcher@0.2.0
+npm install -g copilot-byok-switcher@0.3.0
 ```
 
 The same version can be installed directly from its GitHub tag:
 
 ```sh
-npm install -g github:TheStreamCode/copilot-byok-switcher#v0.2.0
+npm install -g github:TheStreamCode/copilot-byok-switcher#v0.3.0
 ```
 
 Then verify the CLI is available:
@@ -100,9 +100,17 @@ copilot-byok --native
 Run a BYOK provider:
 
 ```sh
+copilot-byok --provider openai --no-model-prompt
+copilot-byok --provider anthropic --no-model-prompt
+copilot-byok --provider ollama --model qwen3-coder
 copilot-byok --provider chutes --no-model-prompt
+copilot-byok --provider opencode-go-openai --no-model-prompt
 copilot-byok --provider deepseek --no-model-prompt
+copilot-byok --provider groq --no-model-prompt
+copilot-byok --provider xai --no-model-prompt
+copilot-byok --provider mistral --no-model-prompt
 copilot-byok --provider zai --no-model-prompt
+copilot-byok --provider zai-api --no-model-prompt
 copilot-byok --provider minimax --no-model-prompt
 copilot-byok --provider openrouter --no-model-prompt
 copilot-byok --provider moonshot --no-model-prompt
@@ -125,8 +133,12 @@ copilot-byok --provider chutes --model moonshotai/Kimi-K2.6-TEE -p "Reply exactl
 List ranked models:
 
 ```sh
+copilot-byok --provider openai --list-models
+copilot-byok --provider anthropic --list-models
+copilot-byok --provider ollama --list-models
 copilot-byok --provider chutes --list-models
 copilot-byok --provider opencode-go --list-models
+copilot-byok --provider opencode-go-openai --list-models
 copilot-byok --provider fireworks --list-models
 copilot-byok --provider deepseek --list-models
 copilot-byok --provider zai --list-models
@@ -155,12 +167,14 @@ Any other argument, and everything after `--`, is forwarded unchanged to GitHub 
 
 ## Built-In Providers
 
-The CLI includes defaults for Chutes, OpenCode Go, Fireworks AI, OpenRouter, Moonshot AI (Kimi), DeepSeek, Z.ai (GLM), MiniMax, Alibaba Model Studio Token Plan, and Tencent Cloud Token Plan.
+The CLI includes documented presets for direct OpenAI and Anthropic access, local Ollama, OpenCode Go, and major OpenAI-compatible providers. OpenCode Go is split by wire protocol so only compatible models are offered by each preset.
 
 API keys are read from environment variables. For example:
 
 ```sh
 export CHUTES_API_KEY=...
+export OPENAI_API_KEY=...
+export ANTHROPIC_API_KEY=...
 export OPENCODE_GO_API_KEY=...
 export FIREWORKS_API_KEY=...
 export DEEPSEEK_API_KEY=...
@@ -168,6 +182,9 @@ export ZAI_API_KEY=...
 export MINIMAX_API_KEY=...
 export OPENROUTER_API_KEY=...
 export MOONSHOT_API_KEY=...
+export GROQ_API_KEY=...
+export XAI_API_KEY=...
+export MISTRAL_API_KEY=...
 export ALIBABA_TOKEN_PLAN_API_KEY=...
 export TENCENT_TOKEN_PLAN_API_KEY=...
 ```
@@ -176,6 +193,8 @@ PowerShell:
 
 ```powershell
 $env:CHUTES_API_KEY = "..."
+$env:OPENAI_API_KEY = "..."
+$env:ANTHROPIC_API_KEY = "..."
 $env:OPENCODE_GO_API_KEY = "..."
 $env:FIREWORKS_API_KEY = "..."
 $env:DEEPSEEK_API_KEY = "..."
@@ -183,6 +202,9 @@ $env:ZAI_API_KEY = "..."
 $env:MINIMAX_API_KEY = "..."
 $env:OPENROUTER_API_KEY = "..."
 $env:MOONSHOT_API_KEY = "..."
+$env:GROQ_API_KEY = "..."
+$env:XAI_API_KEY = "..."
+$env:MISTRAL_API_KEY = "..."
 $env:ALIBABA_TOKEN_PLAN_API_KEY = "..."
 $env:TENCENT_TOKEN_PLAN_API_KEY = "..."
 ```
@@ -191,14 +213,22 @@ Every preset is based on the provider's official API documentation:
 
 | Provider (id / aliases) | Protocol | Official endpoint | Default model | Documentation |
 |---|---|---|---|---|
+| OpenAI (`openai`) | OpenAI Responses | `https://api.openai.com/v1` | `gpt-5.6-sol` | [OpenAI models](https://developers.openai.com/api/docs/models) |
+| Anthropic (`anthropic`, `claude`) | Anthropic | `https://api.anthropic.com` | `claude-sonnet-4-6` | [Anthropic Models API](https://platform.claude.com/docs/en/api/models/list) |
+| Ollama (`ollama`) | OpenAI | `http://localhost:11434/v1` | first compatible local model | [GitHub Copilot BYOK docs](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/use-byok-models) |
 | Chutes (`chutes`) | OpenAI | `https://llm.chutes.ai/v1` | auto-ranked | [Chutes docs](https://chutes.ai/docs) |
-| OpenCode Go (`opencode-go`, `go`, `opencode`) | Anthropic | `https://opencode.ai/zen/go` | auto-ranked | [OpenCode Go docs](https://opencode.ai/docs/go/) |
+| OpenCode Go (`opencode-go`, `go`, `opencode`) | Anthropic | `https://opencode.ai/zen/go` | `minimax-m3` | [OpenCode Go endpoints](https://opencode.ai/docs/go/) |
+| OpenCode Go OpenAI (`opencode-go-openai`, `go-openai`) | OpenAI | `https://opencode.ai/zen/go/v1` | `deepseek-v4-pro` | [OpenCode Go endpoints](https://opencode.ai/docs/go/) |
 | Fireworks AI (`fireworks`, `fire`) | Anthropic | `https://api.fireworks.ai/inference` | auto-ranked | [Fireworks Anthropic compatibility](https://docs.fireworks.ai/tools-sdks/anthropic-compatibility) |
 | OpenRouter (`openrouter`, `or`) | OpenAI | `https://openrouter.ai/api/v1` | `openrouter/auto` | [OpenRouter models API](https://openrouter.ai/docs/api/api-reference/models/get-models) |
 | Moonshot AI (`moonshot`, `kimi`) | OpenAI | `https://api.moonshot.ai/v1` | `kimi-k3` | [Kimi models API](https://platform.kimi.ai/docs/api/list-models) |
 | DeepSeek (`deepseek`) | OpenAI | `https://api.deepseek.com` | `deepseek-v4-pro` | [DeepSeek models API](https://api-docs.deepseek.com/api/list-models) |
-| Z.ai (`zai`, `glm`) | OpenAI | `https://api.z.ai/api/coding/paas/v4` | `glm-5.1` | [Z.ai HTTP API](https://docs.z.ai/guides/develop/http/introduction) |
-| MiniMax (`minimax`) | OpenAI | `https://api.minimax.io/v1` | `MiniMax-M2.7` | [MiniMax models API](https://platform.minimax.io/docs/api-reference/models/openai/list-models) |
+| Groq (`groq`) | OpenAI | `https://api.groq.com/openai/v1` | `openai/gpt-oss-120b` | [Groq OpenAI compatibility](https://console.groq.com/docs/openai) |
+| xAI (`xai`, `grok`) | OpenAI | `https://api.x.ai/v1` | `grok-4.5` | [xAI models API](https://docs.x.ai/developers/rest-api-reference/inference/models) |
+| Mistral AI (`mistral`, `mistral-ai`) | OpenAI | `https://api.mistral.ai/v1` | `devstral-latest` | [Mistral Models API](https://docs.mistral.ai/api/endpoint/models) |
+| Z.ai Coding Plan (`zai`, `glm`) | OpenAI | `https://api.z.ai/api/coding/paas/v4` | `glm-5.2` | [Z.ai HTTP API](https://docs.z.ai/guides/develop/http/introduction) |
+| Z.ai API (`zai-api`, `glm-api`) | OpenAI | `https://api.z.ai/api/paas/v4` | `glm-5.2` | [Z.ai HTTP API](https://docs.z.ai/guides/develop/http/introduction) |
+| MiniMax (`minimax`) | OpenAI | `https://api.minimax.io/v1` | `MiniMax-M3` | [MiniMax models API](https://platform.minimax.io/docs/api-reference/models/openai/list-models) |
 | Alibaba Model Studio Token Plan (`alibaba-token-plan`, `qwen`) | OpenAI | `https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1` | `qwen3.7-plus` | [Alibaba Token Plan quickstart](https://help.aliyun.com/en/model-studio/token-plan-personal-quick-start) |
 | Tencent Cloud Token Plan (`tencent-token-plan`, `tokenhub`) | OpenAI | `https://api.lkeap.cloud.tencent.com/plan/v3` | `tc-code-latest` | [Tencent Token Plan quickstart](https://cloud.tencent.com/document/product/1823/130119) |
 
@@ -206,15 +236,17 @@ Provider-specific examples:
 
 ```sh
 copilot-byok --provider deepseek --no-model-prompt -p "Explain this repository"
-copilot-byok --provider zai --model glm-5.1 -p "Reply exactly: OK"
-copilot-byok --provider minimax --model MiniMax-M2.7 -p "Summarize the latest diff"
+copilot-byok --provider openai --no-model-prompt -p "Review this repository"
+copilot-byok --provider ollama --model qwen3-coder -p "Explain this function"
+copilot-byok --provider zai --model glm-5.2 -p "Reply exactly: OK"
+copilot-byok --provider minimax --model MiniMax-M3 -p "Summarize the latest diff"
 copilot-byok --provider openrouter --offline --no-model-prompt
 copilot-byok --provider kimi --model kimi-k3 -p "Review this diff"
 copilot-byok --provider qwen --model qwen3.7-plus -p "Fix the failing tests"
 copilot-byok --provider tokenhub --model tc-code-latest -p "Refactor this module"
 ```
 
-Z.ai uses the Coding Plan endpoint by default because it is the endpoint documented for coding tools. If you need the general Z.ai API endpoint instead, create a custom provider with `baseUrl` set to `https://api.z.ai/api/paas/v4`.
+`zai` keeps the Coding Plan endpoint and existing aliases; `zai-api` targets the separate pay-as-you-go endpoint. OpenCode Go Messages-compatible models use `opencode-go`, while its Chat Completions models use `opencode-go-openai`.
 
 The Alibaba preset is specifically for the Beijing Model Studio Token Plan and requires its dedicated plan key. The Tencent preset targets the mainland China personal Token Plan and requires its dedicated `sk-tp-...` key. Pay-as-you-go, enterprise, international, and other regions use different endpoints and should be configured as custom providers.
 
@@ -291,8 +323,9 @@ Use `responses` only when the selected provider and model officially support it.
 
 When no `--model` is provided, the CLI fetches the provider model catalog and ranks models with these rules:
 
-- Exclude non-chat/non-agent model names such as image, embedding, rerank, OCR, guard, TTS, Whisper, audio, and diffusion models.
-- Require text input when the provider exposes modality metadata.
+- Place the configured `defaultModel` first, followed by ranked catalog alternatives.
+- Exclude non-chat/non-agent model names such as image, video, moderation, realtime, embedding, rerank, OCR, guard, TTS, Whisper, audio, and diffusion models.
+- Require text input and output when the provider exposes modality metadata.
 - Require tool support when the provider exposes tool metadata and `requireToolSupport` is enabled.
 - Require serverless/ready/OK state when the provider exposes those fields.
 - Prefer newer `updateTime`, then newer `createTime` or `created`.
@@ -310,15 +343,20 @@ When no `--model` is provided, the CLI fetches the provider model catalog and ra
 | `aliases` | no | Additional unique names accepted by `--provider`. |
 | `type` | yes | Copilot BYOK provider type: `openai`, `anthropic`, or `azure`. |
 | `baseUrl` | yes | BYOK provider base URL. |
+| `authRequired` | no | Whether launching requires an API key or bearer token; defaults to `true`. Set `false` only for authless endpoints such as local Ollama. |
 | `apiKeyEnv` | no | Env var name or list of names for API key lookup. |
 | `bearerTokenEnv` | no | Env var name or list for bearer token lookup. |
 | `modelsUrl` | no | URL used to fetch model catalog. |
-| `modelsAuth` | no | Send the provider bearer token to a cross-origin catalog only when explicitly `true`; use `false` or `none` to disable catalog auth. |
+| `modelsAuth` | no | Catalog auth mode: `bearer`, `x-api-key`, or `api-key`; `true` remains a bearer alias and explicitly permits cross-origin auth. Use `false` or `none` to disable it. |
 | `modelsHeaders` | no | Non-secret string headers for model catalog requests. |
 | `modelsTimeoutMs` | no | Catalog timeout from 10 to 300000 ms; defaults to 10000 ms. |
 | `catalogModelId` | no | Built-in Copilot model id for internal capabilities. |
-| `defaultModel` | no | Fallback model when catalog fetch fails. |
+| `defaultModel` | no | Automatic default model, placed before ranked catalog alternatives. |
+| `modelIncludePrefixes` | no | Case-insensitive model-id prefixes allowed from the catalog. |
+| `modelExcludePrefixes` | no | Case-insensitive model-id prefixes removed from the catalog after inclusion filtering. |
 | `wireApi` | no | BYOK wire API: `completions` or `responses`. |
+| `transport` | no | Copilot provider transport: `http` or `websockets`. |
+| `azureApiVersion` | no | Azure OpenAI API version passed to Copilot. |
 | `maxPromptTokens` | no | Manual prompt token limit. |
 | `maxOutputTokens` | no | Manual output token limit. |
 | `requireToolSupport` | no | Exclude models without tool support metadata. |
@@ -328,10 +366,10 @@ When no `--model` is provided, the CLI fetches the provider model catalog and ra
 - API keys are read from environment variables.
 - Provider config files cannot contain inline API keys or bearer tokens.
 - Dry-run output redacts secret env values.
-- Stale `COPILOT_PROVIDER_*` variables are stripped before launching Copilot.
+- Stale `COPILOT_PROVIDER_*`, `COPILOT_MODEL`, and `COPILOT_OFFLINE` variables are stripped before launching Copilot.
 - Provider source-key variables are removed case-insensitively from the child environment.
-- Catalog requests time out after 10 seconds by default.
-- Credentials are sent automatically only to same-origin catalog URLs; cross-origin auth requires `modelsAuth: true`.
+- Catalog requests time out after 10 seconds by default and responses are limited to 5 MiB.
+- Credentials are sent automatically only to same-origin catalog URLs; cross-origin auth requires an explicit `modelsAuth` mode.
 - BYOK environment variables are passed only to the child Copilot process.
 - The tool does not write tokens to disk.
 

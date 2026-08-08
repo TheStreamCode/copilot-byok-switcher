@@ -9,17 +9,30 @@ const FAMILY_PRIORITIES = [
 ];
 
 const DENY_PATTERNS = [
-  /(^|[/_-])(flux|sdxl|stable-diffusion|diffusion)([/_.-]|$)/i,
-  /(^|[/_-])(embedding|embed|rerank|ocr|guard|tts|whisper|audio)([/_.-]|$)/i,
+  /(^|[/_.-])(flux|sdxl|stable-diffusion|diffusion|dall-e|sora|image|video|moderation|realtime)([/_.-]|$)/i,
+  /(^|[/_.-])(embedding|embed|rerank|ocr|guard|safeguard|safety|tts|whisper|audio|speech|transcription|computer-use)([/_.-]|$)/i,
   /(text-embedding|bge-|e5-|clip|siglip)/i,
 ];
 
-export function rankModels({ payload, requireToolSupport = false } = {}) {
+const MAX_MODEL_ID_LENGTH = 512;
+
+export function rankModels({
+  payload,
+  requireToolSupport = false,
+  modelIncludePrefixes,
+  modelExcludePrefixes,
+} = {}) {
   const items = getModelItems(payload);
+  const includePrefixes = normalizePrefixes(modelIncludePrefixes);
+  const excludePrefixes = normalizePrefixes(modelExcludePrefixes);
 
   return items
     .map((model, index) => ({ model, index, id: getModelId(model) }))
-    .filter((entry) => entry.id && isUsableModel(entry.model, entry.id, requireToolSupport))
+    .filter((entry) => (
+      entry.id &&
+      matchesConfiguredPrefixes(entry.id, includePrefixes, excludePrefixes) &&
+      isUsableModel(entry.model, entry.id, requireToolSupport)
+    ))
     .map((entry) => ({
       id: entry.id,
       updated: getUpdatedTicks(entry.model),
@@ -52,9 +65,30 @@ function getModelItems(payload) {
 }
 
 function getModelId(model) {
-  if (typeof model?.id === 'string' && model.id.trim()) return model.id.trim();
-  if (typeof model?.name === 'string' && model.name.trim()) return model.name.trim();
+  if (typeof model?.id === 'string' && isSafeModelId(model.id.trim())) return model.id.trim();
+  if (typeof model?.name === 'string' && isSafeModelId(model.name.trim())) return model.name.trim();
   return '';
+}
+
+function isSafeModelId(value) {
+  return Boolean(value) && value.length <= MAX_MODEL_ID_LENGTH && !hasControlCharacters(value);
+}
+
+function hasControlCharacters(value) {
+  return [...value].some((character) => {
+    const codePoint = character.codePointAt(0);
+    return codePoint <= 31 || (codePoint >= 127 && codePoint <= 159);
+  });
+}
+
+function normalizePrefixes(prefixes) {
+  return Array.isArray(prefixes) ? prefixes.map((prefix) => prefix.toLowerCase()) : [];
+}
+
+function matchesConfiguredPrefixes(id, includePrefixes, excludePrefixes) {
+  const normalized = id.toLowerCase();
+  if (includePrefixes.length > 0 && !includePrefixes.some((prefix) => normalized.startsWith(prefix))) return false;
+  return !excludePrefixes.some((prefix) => normalized.startsWith(prefix));
 }
 
 function isUsableModel(model, id, requireToolSupport) {
@@ -68,6 +102,18 @@ function isUsableModel(model, id, requireToolSupport) {
     Array.isArray(model.architecture?.input_modalities) &&
     model.architecture.input_modalities.length > 0 &&
     !model.architecture.input_modalities.includes('text')
+  ) {
+    return false;
+  }
+
+  if (Array.isArray(model.output_modalities) && model.output_modalities.length > 0 && !model.output_modalities.includes('text')) {
+    return false;
+  }
+
+  if (
+    Array.isArray(model.architecture?.output_modalities) &&
+    model.architecture.output_modalities.length > 0 &&
+    !model.architecture.output_modalities.includes('text')
   ) {
     return false;
   }
@@ -95,6 +141,13 @@ function isUsableModel(model, id, requireToolSupport) {
   if (model.supportsTools != null || model.supports_tools != null || hasConversationConfig) {
     hasToolMetadata = true;
     hasToolSupport = hasToolSupport || model.supportsTools === true || model.supports_tools === true || hasConversationConfig;
+    if (requireToolSupport && !hasToolSupport) return false;
+  }
+
+  const nestedToolSupport = model.capabilities?.function_calling ?? model.capabilities?.tool_calling;
+  if (nestedToolSupport != null) {
+    hasToolMetadata = true;
+    hasToolSupport = hasToolSupport || nestedToolSupport === true;
     if (requireToolSupport && !hasToolSupport) return false;
   }
 
@@ -132,7 +185,14 @@ function getDateTicks(model, keys) {
 }
 
 function getContextLength(model) {
-  for (const key of ['context_length', 'contextLength', 'max_model_len', 'trainingContextLength']) {
+  for (const key of [
+    'context_length',
+    'contextLength',
+    'max_context_length',
+    'max_input_tokens',
+    'max_model_len',
+    'trainingContextLength',
+  ]) {
     const value = Number(model?.[key]);
     if (Number.isFinite(value) && value > 0) return value;
   }

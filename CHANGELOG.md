@@ -4,6 +4,34 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-08
+
+### Added
+
+- Built-in presets for OpenAI, Anthropic, local Ollama, Groq, xAI, Mistral AI, the Z.ai pay-as-you-go API, and the OpenAI-compatible OpenCode Go endpoint.
+- Optional provider authentication through `authRequired: false`, catalog authentication modes for bearer, `x-api-key`, and `api-key`, model include/exclude prefixes, transport selection, and Azure API version forwarding.
+- A 5 MiB model-catalog response limit and model-id validation against terminal control characters and excessive lengths.
+
+### Changed
+
+- OpenCode Go now keeps Messages-compatible MiniMax/Qwen models separate from Chat Completions models; all existing `opencode-go`, `go`, and `opencode` identifiers remain valid.
+- A configured `defaultModel` is now the actual automatic default, ahead of ranked catalog alternatives.
+- Model ranking filters non-chat output modalities and additional image, video, moderation, realtime, transcription, speech, and safety model families, and understands nested capability/context metadata.
+- Updated Z.ai Coding Plan to `glm-5.2`, MiniMax to `MiniMax-M3`, ESLint to 10.8.1, globals to 17.9.0, and the fixed `brace-expansion` transitive release.
+
+### Security
+
+- Native and BYOK launches strip stale `COPILOT_MODEL`, `COPILOT_OFFLINE`, all `COPILOT_PROVIDER_*` variables, and built-in or custom provider credential sources from the Copilot child environment.
+- Inline credential fields are rejected even when empty; credential-like URL query parameters and broader secret-bearing catalog headers are also rejected.
+- Bearer credentials now take precedence over API keys instead of emitting both to the child process.
+- CI audits both production and development dependencies at high severity.
+
+### Fixed
+
+- Authless local providers such as Ollama no longer require a dummy API key.
+- Native mode still ignores malformed provider configuration for startup, while valid custom configuration is used to sanitize secret-source variables.
+- Non-`ENOENT` configuration discovery errors are no longer silently treated as a missing file.
+
 ## [0.2.0] - 2026-08-01
 
 ### Added

@@ -127,3 +127,50 @@ test('understands OpenRouter modalities and tool parameter metadata', () => {
 
   assert.deepEqual(models, ['vendor/tool-model']);
 });
+
+test('excludes non-chat output modalities and unsafe model ids', () => {
+  const models = rankModels({
+    payload: {
+      data: [
+        { id: 'gpt-image-2', output_modalities: ['image'] },
+        { id: 'dall-e-3' },
+        { id: 'openai/gpt-oss-safeguard-20b' },
+        { id: 'computer-use-preview' },
+        { id: 'omni-moderation-latest', output_modalities: ['text'] },
+        { id: 'safe-chat-model', output_modalities: ['text'] },
+        { id: 'unsafe\u001b[31m-model', output_modalities: ['text'] },
+        { id: 'x'.repeat(513), output_modalities: ['text'] },
+      ],
+    },
+  });
+
+  assert.deepEqual(models, ['safe-chat-model']);
+});
+
+test('supports nested tool capabilities, context fields, and prefix filters', () => {
+  const models = rankModels({
+    requireToolSupport: true,
+    modelIncludePrefixes: ['devstral-', 'codestral-'],
+    modelExcludePrefixes: ['codestral-legacy'],
+    payload: {
+      data: [
+        {
+          id: 'devstral-latest',
+          capabilities: { function_calling: true },
+          max_input_tokens: 262144,
+        },
+        {
+          id: 'codestral-legacy',
+          capabilities: { function_calling: true },
+          max_context_length: 131072,
+        },
+        {
+          id: 'unrelated-model',
+          capabilities: { function_calling: true },
+        },
+      ],
+    },
+  });
+
+  assert.deepEqual(models, ['devstral-latest']);
+});

@@ -1,6 +1,6 @@
 {
   "name": "copilot-byok-switcher",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Cross-platform launcher for GitHub Copilot CLI custom model providers (BYOK), with interactive selection and automatic model defaults.",
   "keywords": [
     "github-copilot",
@@ -56,7 +56,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "eslint": "^10.8.0",
-    "globals": "^17.8.0"
+    "eslint": "^10.8.1",
+    "globals": "^17.9.0"
   }
 }

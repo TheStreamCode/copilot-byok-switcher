@@ -11,6 +11,7 @@ import { buildProviderEnvironment } from './provider-env.mjs';
 import { sanitizeCopilotEnvironment } from './process-env.mjs';
 
 const DEFAULT_MODEL_FETCH_TIMEOUT_MS = 10_000;
+const MAX_MODEL_CATALOG_BYTES = 5 * 1024 * 1024;
 
 export async function main(argv = process.argv.slice(2), io = defaultIo()) {
   const args = parseArgs(argv);
@@ -26,9 +27,10 @@ export async function main(argv = process.argv.slice(2), io = defaultIo()) {
   }
 
   if (args.providerName === 'native') {
+    const config = await loadConfigForSanitization({ configPath: args.configPath, env: io.env });
     const copilotArgs = [...args.copilotArgs];
     if (args.explicitModel) copilotArgs.unshift('--model', args.explicitModel);
-    return runCopilot({ copilotArgs, env: {}, io, dryRun: args.dryRun, native: true });
+    return runCopilot({ copilotArgs, env: {}, io, dryRun: args.dryRun, native: true, config });
   }
 
   const config = await loadConfig({ configPath: args.configPath, env: io.env });
@@ -40,10 +42,10 @@ export async function main(argv = process.argv.slice(2), io = defaultIo()) {
     }
     const copilotArgs = [...args.copilotArgs];
     if (args.explicitModel) copilotArgs.unshift('--model', args.explicitModel);
-    return runCopilot({ copilotArgs, env: {}, io, dryRun: args.dryRun, native: true });
+    return runCopilot({ copilotArgs, env: {}, io, dryRun: args.dryRun, native: true, config });
   }
 
-  if (!args.listModels && !provider.apiKey && !provider.bearerToken) {
+  if (!args.listModels && provider.authRequired !== false && !provider.apiKey && !provider.bearerToken) {
     throw new Error(`Missing API key for ${provider.name}. Configure an environment variable listed in the provider's apiKeyEnv or bearerTokenEnv setting.`);
   }
 
@@ -121,9 +123,18 @@ async function loadProviderModels(provider, io, { strict = false } = {}) {
       signal: AbortSignal.timeout(timeoutMs),
     });
     if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
-    const payload = await response.json();
-    const ranked = rankModels({ payload, requireToolSupport: provider.requireToolSupport === true });
-    if (provider.defaultModel && !ranked.includes(provider.defaultModel)) ranked.push(provider.defaultModel);
+    const payload = await readJsonResponse(response, MAX_MODEL_CATALOG_BYTES);
+    const ranked = rankModels({
+      payload,
+      requireToolSupport: provider.requireToolSupport === true,
+      modelIncludePrefixes: provider.modelIncludePrefixes,
+      modelExcludePrefixes: provider.modelExcludePrefixes,
+    });
+    if (provider.defaultModel) {
+      const defaultIndex = ranked.indexOf(provider.defaultModel);
+      if (defaultIndex >= 0) ranked.splice(defaultIndex, 1);
+      ranked.unshift(provider.defaultModel);
+    }
     if (strict && ranked.length === 0) throw new Error(`No models returned by ${provider.modelsUrl}`);
     return ranked;
   } catch (error) {
@@ -141,12 +152,57 @@ async function loadProviderModels(provider, io, { strict = false } = {}) {
 function providerModelHeaders(provider) {
   const headers = { ...(provider.modelsHeaders || {}) };
   if (provider.modelsAuth === false || provider.modelsAuth === 'none') return headers;
-  const token = provider.bearerToken || provider.apiKey;
+  const authMode = provider.modelsAuth === true || provider.modelsAuth == null
+    ? 'bearer'
+    : provider.modelsAuth;
+  const token = authMode === 'bearer'
+    ? provider.bearerToken || provider.apiKey
+    : provider.apiKey || provider.bearerToken;
   if (!token) return headers;
 
   const sameOrigin = new URL(provider.modelsUrl).origin === new URL(provider.baseUrl).origin;
-  if (sameOrigin || provider.modelsAuth === true) headers.Authorization = `Bearer ${token}`;
+  const explicitAuth = provider.modelsAuth === true || typeof provider.modelsAuth === 'string';
+  if (!sameOrigin && !explicitAuth) return headers;
+
+  if (authMode === 'x-api-key') headers['x-api-key'] = token;
+  else if (authMode === 'api-key') headers['api-key'] = token;
+  else headers.Authorization = `Bearer ${token}`;
   return headers;
+}
+
+async function readJsonResponse(response, maxBytes) {
+  const contentLength = Number(response.headers?.get?.('content-length'));
+  if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+    throw new Error(`model catalog exceeds the ${maxBytes}-byte limit`);
+  }
+
+  if (!response.body?.getReader) return response.json();
+
+  const reader = response.body.getReader();
+  const chunks = [];
+  let totalBytes = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > maxBytes) {
+        await reader.cancel();
+        throw new Error(`model catalog exceeds the ${maxBytes}-byte limit`);
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const contents = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    contents.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return JSON.parse(new TextDecoder().decode(contents));
 }
 
 async function selectModel({ provider, models, noPrompt, io }) {
@@ -212,6 +268,14 @@ function describeSpawnError(error, copilotBin) {
 async function readPackageVersion() {
   const manifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
   return manifest.version;
+}
+
+async function loadConfigForSanitization(options) {
+  try {
+    return await loadConfig(options);
+  } catch {
+    return null;
+  }
 }
 
 export function buildCopilotSpawnOptions({ env, ioEnv = process.env, config = null }) {

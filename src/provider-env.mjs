@@ -10,16 +10,22 @@ export function buildProviderEnvironment({ provider, wireModel, offline = false 
     COPILOT_PROVIDER_WIRE_MODEL: wireModel,
   };
 
-  if (provider.apiKey) {
-    env.COPILOT_PROVIDER_API_KEY = provider.apiKey;
-  }
-
   if (provider.bearerToken) {
     env.COPILOT_PROVIDER_BEARER_TOKEN = provider.bearerToken;
+  } else if (provider.apiKey) {
+    env.COPILOT_PROVIDER_API_KEY = provider.apiKey;
   }
 
   if (provider.wireApi) {
     env.COPILOT_PROVIDER_WIRE_API = provider.wireApi;
+  }
+
+  if (provider.transport) {
+    env.COPILOT_PROVIDER_TRANSPORT = provider.transport;
+  }
+
+  if (provider.azureApiVersion) {
+    env.COPILOT_PROVIDER_AZURE_API_VERSION = provider.azureApiVersion;
   }
 
   if (provider.maxPromptTokens != null) {
