@@ -12,6 +12,7 @@ import { sanitizeCopilotEnvironment } from './process-env.mjs';
 import { runCopilotWithRouter, selectActiveProviders, startRouter } from './launcher.mjs';
 import { runKeysCommand } from './keys-command.mjs';
 import { loadKeys } from './keystore.mjs';
+import { runExtensionCommand } from './extension-install.mjs';
 
 const DEFAULT_MODEL_FETCH_TIMEOUT_MS = 10_000;
 const MAX_MODEL_CATALOG_BYTES = 5 * 1024 * 1024;
@@ -21,6 +22,11 @@ export async function main(argv = process.argv.slice(2), io = defaultIo()) {
   if (argv[0] === 'keys') {
     const config = await loadConfig({ env: io.env, secrets: await loadKeys(io.env) });
     return runKeysCommand({ argv: argv.slice(1), config, io });
+  }
+
+  // `extension` installs the in-session /byok command.
+  if (argv[0] === 'extension') {
+    return runExtensionCommand({ argv: argv.slice(1), io });
   }
 
   const args = parseArgs(argv);
@@ -73,6 +79,13 @@ async function runRouterMode({ args, config, io }) {
     providers: config.providers,
     upstreamOrigin: args.upstream || io.env.COPILOT_BYOK_UPSTREAM,
     onEvent: buildEventLogger(io),
+    // Re-read config and key store so a key added mid-session (via /byok)
+    // shows up in the picker without restarting.
+    reload: async () => {
+      const secrets = await loadKeys(io.env);
+      const fresh = await loadConfig({ configPath: args.configPath, env: io.env, secrets });
+      return fresh.providers;
+    },
   });
 
   const modelCount = router.catalog.entries.length;
@@ -428,6 +441,11 @@ Credentials:
   copilot-byok keys set <provider>  Store a key (prompted, never echoed)
   copilot-byok keys remove <id>     Delete a stored key
   copilot-byok keys path            Print the key store location
+
+In-session command:
+  copilot-byok extension install    Add /byok to Copilot (needs --experimental)
+  copilot-byok extension status
+  copilot-byok extension uninstall
 
 Classic mode (one provider per session, without the GitHub models):
       --legacy              Use the COPILOT_PROVIDER_* variables

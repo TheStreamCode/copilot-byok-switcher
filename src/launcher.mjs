@@ -19,15 +19,34 @@ export function selectActiveProviders(providers) {
   });
 }
 
-export function startRouter({ providers, upstreamOrigin, onEvent, port = 0, host = '127.0.0.1' }) {
-  const active = selectActiveProviders(providers);
-  const catalog = buildCatalog(active.map((provider) => ({
+export function startRouter({ providers, upstreamOrigin, onEvent, port = 0, host = '127.0.0.1', reload }) {
+  const build = (list) => buildCatalog(selectActiveProviders(list).map((provider) => ({
     ...provider,
     apiKey: provider.bearerToken || provider.apiKey,
   })));
 
+  const active = selectActiveProviders(providers);
+  let catalog = build(providers);
+  let lastReload = 0;
+
+  // Keys can appear mid-session (the /byok extension writes to the key store), so
+  // the catalog is rebuilt on demand rather than frozen at startup. Rebuilds are
+  // throttled because this runs on the request path.
+  const currentCatalog = async () => {
+    if (!reload) return catalog;
+    const now = Date.now();
+    if (now - lastReload < 2000) return catalog;
+    lastReload = now;
+    try {
+      catalog = build(await reload());
+    } catch (error) {
+      onEvent?.({ type: 'error', message: `catalog reload failed: ${error.message}` });
+    }
+    return catalog;
+  };
+
   const upstream = createUpstreamResolver({ explicit: upstreamOrigin });
-  const server = createRouter({ catalog, upstream, onEvent });
+  const server = createRouter({ catalog: currentCatalog, upstream, onEvent });
 
   return new Promise((resolve, reject) => {
     server.once('error', reject);
@@ -36,6 +55,7 @@ export function startRouter({ providers, upstreamOrigin, onEvent, port = 0, host
       resolve({
         server,
         catalog,
+        currentCatalog,
         providers: active,
         url: `http://${host}:${address.port}`,
         close: () => new Promise((done) => {
@@ -51,9 +71,22 @@ export function startRouter({ providers, upstreamOrigin, onEvent, port = 0, host
 
 export function runCopilotWithRouter({ routerUrl, copilotArgs, env, config, io }) {
   const copilotBin = resolveCopilotBin({ env: io.env });
+
+  // Provider credentials are stripped from the child environment, so the /byok
+  // extension cannot see which ones came from environment variables. This passes
+  // the ids only — never the values — so it can report their state correctly.
+  const fromEnvironment = (config?.providers || [])
+    .filter((provider) => (provider.apiKeyEnv || []).some((name) => io.env[name]))
+    .map((provider) => provider.id)
+    .join(',');
+
   const childEnv = sanitizeCopilotEnvironment(
     io.env,
-    { ...env, COPILOT_API_URL: routerUrl },
+    {
+      ...env,
+      COPILOT_API_URL: routerUrl,
+      ...(fromEnvironment ? { COPILOT_BYOK_ENV_PROVIDERS: fromEnvironment } : {}),
+    },
     collectSecretEnvNames(config)
   );
 

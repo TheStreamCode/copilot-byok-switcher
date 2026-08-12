@@ -20,16 +20,20 @@ const MAX_MODELS_BYTES = 8 * 1024 * 1024;
 
 /**
  * @param {object}   options
- * @param {object}   options.catalog   Result of buildCatalog().
+ * @param {object|function} options.catalog  Result of buildCatalog(), or a function
+ *   returning it. A function is re-evaluated per request, so keys added during the
+ *   session (for example through /byok) take effect without a restart.
  * @param {object}   options.upstream  Resolver from createUpstreamResolver().
  * @param {function} [options.onEvent] Diagnostic callback: ({type, ...}) => void
  */
 export function createRouter({ catalog, upstream: resolver, onEvent = () => {} }) {
+  const readCatalog = typeof catalog === 'function' ? catalog : () => catalog;
+
   return http.createServer((req, res) => {
     collectBody(req)
       .then(async (body) => {
         const origin = await resolver.resolve(req.headers.authorization);
-        return handle({ req, res, body, catalog, upstream: new URL(origin), onEvent });
+        return handle({ req, res, body, catalog: await readCatalog(), upstream: new URL(origin), onEvent });
       })
       .catch((error) => {
         onEvent({ type: 'error', message: error.message });

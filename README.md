@@ -127,6 +127,8 @@ copilot-byok keys remove openai
 copilot-byok keys path
 ```
 
+Or from inside a session, with the `/byok` command (see below).
+
 The store lives at `~/.config/copilot-byok/keys.json` (`%APPDATA%\copilot-byok\keys.json` on Windows), written with `0600` and an owner-only ACL on Windows. Be aware of the trade-off: **keys stored there sit on disk in plain text**, protected by file permissions alone. If that is not acceptable for your threat model, stay with environment variables — the store is opt-in and never created unless you use it.
 
 Keys never reach the Copilot process: the router uses them in its own process and strips them from the child environment.
@@ -142,6 +144,35 @@ npm run catalog:update
 ```
 
 This matters for correctness, not just tidiness: Copilot's harness trusts what a model entry declares. Only models that report tool-calling support are published, because an agent that cannot call tools breaks halfway through a session rather than failing cleanly.
+
+## The /byok command
+
+Copilot CLI extensions can register their own slash commands, so key management
+works without leaving the session:
+
+```sh
+copilot-byok extension install
+copilot-byok -- --experimental      # extensions are gated behind this flag
+```
+
+Then `/byok` opens a provider list and asks for the key:
+
+```
+Choose a provider to configure:
+❯ Anthropic — not configured (4 models)
+  Google Gemini — not configured (3 models)
+  DeepSeek — not configured (4 models)
+  OpenAI — set via environment
+  Chutes — set via environment
+
+Paste the API key for Anthropic: ****
+```
+
+`/byok list` shows the current state and `/byok remove` deletes a stored key.
+
+One honest caveat: Copilot caches its model list for the lifetime of a session,
+so models unlocked by a key added this way appear the **next** time you start
+`copilot-byok` — neither reopening the picker nor `/restart` refreshes them.
 
 ## Custom configuration
 

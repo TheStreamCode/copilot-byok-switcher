@@ -30,8 +30,13 @@ session as the GitHub ones, instead of replacing them.
   environment variable unlocks each of the others.
 - A `models` array on providers, with per-model label, context window and output
   limit, and an `enabled` flag for entries that ship disabled.
+- A `/byok` slash command for use inside a Copilot session, installed with
+  `copilot-byok extension install`. It lists the providers with their state and
+  asks for the key of the one you pick. Copilot CLI extensions are gated behind
+  `--experimental`. Note that Copilot caches its model list per session, so models
+  unlocked this way appear the next time copilot-byok starts.
 - Tests for the catalog, the router (including provider forwarding and model-name
-  translation) and the upstream resolver.
+  translation), the upstream resolver, the key store and the launcher.
 
 ### Changed
 
