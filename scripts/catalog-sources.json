@@ -1,0 +1,405 @@
+{
+  "_comment": "Curated selection used by scripts/update-catalog.mjs to generate src/providers.default.json. Model metadata (context, output, capabilities) comes from models.dev, so it stays aligned with reality instead of being hand-written.",
+  "providers": [
+    {
+      "id": "openai",
+      "name": "OpenAI",
+      "source": "openai",
+      "baseUrl": "https://api.openai.com/v1",
+      "apiKeyEnv": [
+        "OPENAI_API_KEY",
+        "COPILOT_BYOK_OPENAI_API_KEY"
+      ],
+      "models": [
+        "gpt-5.6-sol",
+        "gpt-5.5",
+        "gpt-5.4",
+        "gpt-5.4-mini"
+      ]
+    },
+    {
+      "id": "anthropic",
+      "name": "Anthropic",
+      "source": "anthropic",
+      "baseUrl": "https://api.anthropic.com/v1",
+      "apiKeyEnv": [
+        "ANTHROPIC_API_KEY",
+        "COPILOT_BYOK_ANTHROPIC_API_KEY"
+      ],
+      "models": [
+        "claude-sonnet-4-6",
+        "claude-opus-4-6",
+        "claude-sonnet-4-5",
+        "claude-haiku-4-5"
+      ]
+    },
+    {
+      "id": "gemini",
+      "name": "Google Gemini",
+      "source": "google",
+      "baseUrl": "https://generativelanguage.googleapis.com/v1beta/openai",
+      "apiKeyEnv": [
+        "GEMINI_API_KEY",
+        "GOOGLE_API_KEY",
+        "COPILOT_BYOK_GEMINI_API_KEY"
+      ],
+      "models": [
+        "gemini-3.5-flash",
+        "gemini-2.5-flash",
+        "gemini-3.5-flash-lite"
+      ]
+    },
+    {
+      "id": "xai",
+      "name": "xAI Grok",
+      "source": "xai",
+      "baseUrl": "https://api.x.ai/v1",
+      "apiKeyEnv": [
+        "XAI_API_KEY",
+        "COPILOT_BYOK_XAI_API_KEY"
+      ],
+      "models": [
+        "grok-4.5",
+        "grok-4.3"
+      ]
+    },
+    {
+      "id": "mistral",
+      "name": "Mistral",
+      "source": "mistral",
+      "baseUrl": "https://api.mistral.ai/v1",
+      "apiKeyEnv": [
+        "MISTRAL_API_KEY",
+        "COPILOT_BYOK_MISTRAL_API_KEY"
+      ],
+      "models": [
+        "mistral-medium-latest",
+        "devstral-medium-latest"
+      ]
+    },
+    {
+      "id": "deepseek",
+      "name": "DeepSeek",
+      "source": "deepseek",
+      "baseUrl": "https://api.deepseek.com/v1",
+      "apiKeyEnv": [
+        "DEEPSEEK_API_KEY",
+        "COPILOT_BYOK_DEEPSEEK_API_KEY"
+      ],
+      "models": [
+        "deepseek-v4-pro",
+        "deepseek-v4-flash",
+        "deepseek-reasoner",
+        "deepseek-chat"
+      ]
+    },
+    {
+      "id": "qwen",
+      "name": "Alibaba Qwen",
+      "source": "alibaba",
+      "baseUrl": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+      "apiKeyEnv": [
+        "DASHSCOPE_API_KEY",
+        "QWEN_API_KEY",
+        "COPILOT_BYOK_QWEN_API_KEY"
+      ],
+      "models": [
+        "qwen3.7-max",
+        "qwen3.7-plus",
+        "qwen3-coder-plus"
+      ]
+    },
+    {
+      "id": "qwen-cn",
+      "name": "Alibaba Qwen (China)",
+      "source": "alibaba-cn",
+      "baseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "apiKeyEnv": [
+        "DASHSCOPE_API_KEY_CN",
+        "COPILOT_BYOK_QWEN_CN_API_KEY"
+      ],
+      "models": [
+        "qwen3.7-max",
+        "qwen3-coder-plus"
+      ]
+    },
+    {
+      "id": "zai",
+      "name": "Z.AI GLM",
+      "source": "zai",
+      "baseUrl": "https://api.z.ai/api/paas/v4",
+      "apiKeyEnv": [
+        "ZAI_API_KEY",
+        "ZHIPU_API_KEY",
+        "COPILOT_BYOK_ZAI_API_KEY"
+      ],
+      "models": [
+        "glm-5.2",
+        "glm-5.1",
+        "glm-4.7"
+      ]
+    },
+    {
+      "id": "zhipu-cn",
+      "name": "Zhipu AI (China)",
+      "source": "zhipuai",
+      "baseUrl": "https://open.bigmodel.cn/api/paas/v4",
+      "apiKeyEnv": [
+        "ZHIPU_CN_API_KEY",
+        "COPILOT_BYOK_ZHIPU_CN_API_KEY"
+      ],
+      "models": [
+        "glm-5.2",
+        "glm-4.7"
+      ]
+    },
+    {
+      "id": "kimi",
+      "name": "Moonshot Kimi",
+      "source": "moonshotai",
+      "baseUrl": "https://api.moonshot.ai/v1",
+      "apiKeyEnv": [
+        "MOONSHOT_API_KEY",
+        "KIMI_API_KEY",
+        "COPILOT_BYOK_KIMI_API_KEY"
+      ],
+      "models": [
+        "kimi-k3",
+        "kimi-k2.6",
+        "kimi-k2.5"
+      ]
+    },
+    {
+      "id": "minimax",
+      "name": "MiniMax",
+      "source": "minimax",
+      "baseUrl": "https://api.minimax.io/v1",
+      "apiKeyEnv": [
+        "MINIMAX_API_KEY",
+        "COPILOT_BYOK_MINIMAX_API_KEY"
+      ],
+      "models": [
+        "MiniMax-M3",
+        "MiniMax-M2.7"
+      ]
+    },
+    {
+      "id": "stepfun",
+      "name": "StepFun",
+      "source": "stepfun",
+      "baseUrl": "https://api.stepfun.com/v1",
+      "apiKeyEnv": [
+        "STEPFUN_API_KEY",
+        "COPILOT_BYOK_STEPFUN_API_KEY"
+      ],
+      "models": []
+    },
+    {
+      "id": "doubao",
+      "name": "ByteDance Doubao",
+      "source": null,
+      "baseUrl": "https://ark.cn-beijing.volces.com/api/v3",
+      "apiKeyEnv": [
+        "ARK_API_KEY",
+        "VOLCENGINE_API_KEY",
+        "COPILOT_BYOK_DOUBAO_API_KEY"
+      ],
+      "models": [],
+      "note": "Volcengine model names are account-specific endpoint ids: add yours under `models`."
+    },
+    {
+      "id": "hunyuan",
+      "name": "Tencent Hunyuan",
+      "source": null,
+      "baseUrl": "https://api.hunyuan.cloud.tencent.com/v1",
+      "apiKeyEnv": [
+        "HUNYUAN_API_KEY",
+        "COPILOT_BYOK_HUNYUAN_API_KEY"
+      ],
+      "models": []
+    },
+    {
+      "id": "qianfan",
+      "name": "Baidu Qianfan",
+      "source": null,
+      "baseUrl": "https://qianfan.baidubce.com/v2",
+      "apiKeyEnv": [
+        "QIANFAN_API_KEY",
+        "BAIDU_API_KEY",
+        "COPILOT_BYOK_QIANFAN_API_KEY"
+      ],
+      "models": []
+    },
+    {
+      "id": "siliconflow",
+      "name": "SiliconFlow",
+      "source": "siliconflow",
+      "baseUrl": "https://api.siliconflow.com/v1",
+      "apiKeyEnv": [
+        "SILICONFLOW_API_KEY",
+        "COPILOT_BYOK_SILICONFLOW_API_KEY"
+      ],
+      "models": []
+    },
+    {
+      "id": "modelscope",
+      "name": "ModelScope",
+      "source": "modelscope",
+      "baseUrl": "https://api-inference.modelscope.cn/v1",
+      "apiKeyEnv": [
+        "MODELSCOPE_API_KEY",
+        "COPILOT_BYOK_MODELSCOPE_API_KEY"
+      ],
+      "models": []
+    },
+    {
+      "id": "openrouter",
+      "name": "OpenRouter",
+      "source": "openrouter",
+      "baseUrl": "https://openrouter.ai/api/v1",
+      "apiKeyEnv": [
+        "OPENROUTER_API_KEY",
+        "COPILOT_BYOK_OPENROUTER_API_KEY"
+      ],
+      "models": []
+    },
+    {
+      "id": "groq",
+      "name": "Groq",
+      "source": "groq",
+      "baseUrl": "https://api.groq.com/openai/v1",
+      "apiKeyEnv": [
+        "GROQ_API_KEY",
+        "COPILOT_BYOK_GROQ_API_KEY"
+      ],
+      "models": [
+        "openai/gpt-oss-20b",
+        "llama-3.3-70b-versatile"
+      ]
+    },
+    {
+      "id": "cerebras",
+      "name": "Cerebras",
+      "source": "cerebras",
+      "baseUrl": "https://api.cerebras.ai/v1",
+      "apiKeyEnv": [
+        "CEREBRAS_API_KEY",
+        "COPILOT_BYOK_CEREBRAS_API_KEY"
+      ],
+      "models": []
+    },
+    {
+      "id": "together",
+      "name": "Together AI",
+      "source": "togetherai",
+      "baseUrl": "https://api.together.xyz/v1",
+      "apiKeyEnv": [
+        "TOGETHER_API_KEY",
+        "COPILOT_BYOK_TOGETHER_API_KEY"
+      ],
+      "models": []
+    },
+    {
+      "id": "deepinfra",
+      "name": "DeepInfra",
+      "source": "deepinfra",
+      "baseUrl": "https://api.deepinfra.com/v1/openai",
+      "apiKeyEnv": [
+        "DEEPINFRA_API_KEY",
+        "COPILOT_BYOK_DEEPINFRA_API_KEY"
+      ],
+      "models": []
+    },
+    {
+      "id": "fireworks",
+      "name": "Fireworks AI",
+      "source": "fireworks-ai",
+      "baseUrl": "https://api.fireworks.ai/inference/v1",
+      "apiKeyEnv": [
+        "FIREWORKS_API_KEY",
+        "COPILOT_BYOK_FIREWORKS_API_KEY"
+      ],
+      "models": []
+    },
+    {
+      "id": "chutes",
+      "name": "Chutes",
+      "source": "chutes",
+      "baseUrl": "https://llm.chutes.ai/v1",
+      "apiKeyEnv": [
+        "CHUTES_API_KEY",
+        "COPILOT_BYOK_CHUTES_API_KEY"
+      ],
+      "models": [
+        "zai-org/GLM-5.2-TEE",
+        "moonshotai/Kimi-K2.6-TEE",
+        "deepseek-ai/DeepSeek-V4-Flash-0731-TEE"
+      ]
+    },
+    {
+      "id": "opencode-zen",
+      "name": "OpenCode Zen",
+      "source": "opencode",
+      "baseUrl": "https://opencode.ai/zen/v1",
+      "apiKeyEnv": [
+        "OPENCODE_ZEN_API_KEY",
+        "COPILOT_BYOK_OPENCODE_ZEN_API_KEY"
+      ],
+      "models": [
+        "claude-sonnet-4-6",
+        "gpt-5.5-pro",
+        "gemini-3.5-flash"
+      ]
+    },
+    {
+      "id": "opencode-go",
+      "name": "OpenCode Go",
+      "source": "opencode-go",
+      "baseUrl": "https://opencode.ai/zen/go/v1",
+      "apiKeyEnv": [
+        "OPENCODE_GO_API_KEY",
+        "COPILOT_BYOK_OPENCODE_GO_API_KEY"
+      ],
+      "models": [
+        "glm-5.2",
+        "kimi-k2.6",
+        "minimax-m3",
+        "qwen3.7-max"
+      ]
+    },
+    {
+      "id": "alibaba-token-plan",
+      "name": "Alibaba Token Plan",
+      "source": "alibaba-token-plan",
+      "baseUrl": "https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1",
+      "apiKeyEnv": [
+        "ALIBABA_TOKEN_PLAN_API_KEY",
+        "COPILOT_BYOK_ALIBABA_TOKEN_PLAN_API_KEY"
+      ],
+      "models": [
+        "qwen3.8-max",
+        "deepseek-v4-pro",
+        "kimi-k2.6",
+        "glm-5.2"
+      ]
+    },
+    {
+      "id": "ollama",
+      "name": "Ollama (locale)",
+      "source": null,
+      "baseUrl": "http://127.0.0.1:11434/v1",
+      "authRequired": false,
+      "enabled": false,
+      "models": []
+    },
+    {
+      "id": "lmstudio",
+      "name": "LM Studio (locale)",
+      "source": null,
+      "baseUrl": "http://127.0.0.1:1234/v1",
+      "authRequired": false,
+      "enabled": false,
+      "models": []
+    }
+  ]
+}

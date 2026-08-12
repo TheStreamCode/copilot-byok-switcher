@@ -9,11 +9,29 @@ import { findProvider, loadConfig } from './config.mjs';
 import { rankModels } from './model-ranking.mjs';
 import { buildProviderEnvironment } from './provider-env.mjs';
 import { sanitizeCopilotEnvironment } from './process-env.mjs';
+import { runCopilotWithRouter, selectActiveProviders, startRouter } from './launcher.mjs';
+import { runKeysCommand } from './keys-command.mjs';
+import { loadKeys } from './keystore.mjs';
+import { runExtensionCommand } from './extension-install.mjs';
+import { createSessionLog } from './session-log.mjs';
 
 const DEFAULT_MODEL_FETCH_TIMEOUT_MS = 10_000;
 const MAX_MODEL_CATALOG_BYTES = 5 * 1024 * 1024;
 
 export async function main(argv = process.argv.slice(2), io = defaultIo()) {
+  // `keys` is a subcommand, not a flag: it manages credentials and never starts Copilot.
+  if (argv[0] === 'keys') {
+    const rest = argv.slice(1);
+    const configPath = extractConfigPath(rest);
+    const config = await loadConfig({ configPath, env: io.env, secrets: await loadKeys(io.env) });
+    return runKeysCommand({ argv: rest, config, io });
+  }
+
+  // `extension` installs the in-session /byok command.
+  if (argv[0] === 'extension') {
+    return runExtensionCommand({ argv: argv.slice(1), io });
+  }
+
   const args = parseArgs(argv);
 
   if (args.help) {
@@ -33,7 +51,93 @@ export async function main(argv = process.argv.slice(2), io = defaultIo()) {
     return runCopilot({ copilotArgs, env: {}, io, dryRun: args.dryRun, native: true, config });
   }
 
-  const config = await loadConfig({ configPath: args.configPath, env: io.env });
+  const secrets = await loadKeys(io.env);
+
+  if (args.listProviders) {
+    const config = await loadConfig({ configPath: args.configPath, env: io.env, secrets });
+    return listProviders({ config, io });
+  }
+
+  if (!args.legacy) {
+    const config = await loadConfig({ configPath: args.configPath, env: io.env, secrets });
+    return runRouterMode({ args, config, io });
+  }
+
+  return runLegacyMode({ args, io });
+}
+
+/** Default mode: BYOK models show up in the /model picker next to the GitHub ones. */
+async function runRouterMode({ args, config, io }) {
+  const active = selectActiveProviders(config.providers);
+
+  if (active.length === 0) {
+    io.stderr.write(
+      'No BYOK provider configured: starting Copilot with GitHub models only.\n' +
+      'Run "copilot-byok --list-providers" to see which environment variables to set.\n\n'
+    );
+    return runCopilot({ copilotArgs: args.copilotArgs, env: {}, io, dryRun: args.dryRun, native: true, config });
+  }
+
+  const sessionLog = createSessionLog(io);
+
+  const router = await startRouter({
+    providers: config.providers,
+    upstreamOrigin: args.upstream || io.env.COPILOT_BYOK_UPSTREAM,
+    onEvent: sessionLog.onEvent,
+    // Re-read config and key store so a key added mid-session (via /byok)
+    // shows up in the picker without restarting.
+    reload: async () => {
+      const secrets = await loadKeys(io.env);
+      const fresh = await loadConfig({ configPath: args.configPath, env: io.env, secrets });
+      return fresh.providers;
+    },
+  });
+
+  const modelCount = router.catalog.entries.length;
+  io.stderr.write(
+    `copilot-byok: added ${modelCount} models from ${router.providers.length} providers to the /model picker\n`
+  );
+
+  const copilotArgs = [...args.copilotArgs];
+  if (args.explicitModel) copilotArgs.unshift('--model', args.explicitModel);
+
+  if (args.dryRun) {
+    io.stdout.write(`${JSON.stringify({
+      mode: 'router',
+      routerUrl: router.url,
+      providers: router.providers.map((provider) => provider.id),
+      models: router.catalog.entries.map((entry) => entry.id),
+      args: copilotArgs,
+    }, null, 2)}\n`);
+    await router.close();
+    return 0;
+  }
+
+  try {
+    return await runCopilotWithRouter({ routerUrl: router.url, copilotArgs, env: {}, config, io });
+  } finally {
+    await router.close();
+    // Only now is the terminal ours again: Copilot's TUI has released the screen.
+    sessionLog.summarize();
+  }
+}
+
+function listProviders({ config, io }) {
+  const active = new Set(selectActiveProviders(config.providers).map((provider) => provider.id));
+
+  for (const provider of config.providers) {
+    const usable = active.has(provider.id);
+    const keys = (provider.apiKeyEnv || []).join(' | ') || (provider.authRequired === false ? 'no key needed' : '-');
+    io.stdout.write(`${usable ? '*' : ' '} ${provider.id.padEnd(20)} ${String(provider.models?.length || 0).padStart(2)} models  ${keys}\n`);
+  }
+
+  io.stdout.write('\n* = usable right now. The others are waiting for the environment variable shown.\n');
+  return 0;
+}
+
+/** Classic mode: one provider per session, without the GitHub models. */
+async function runLegacyMode({ args, io }) {
+  const config = await loadConfig({ configPath: args.configPath, env: io.env, secrets: await loadKeys(io.env) });
   const provider = await resolveProvider({ config, requested: args.providerName, io });
 
   if (provider === 'native') {
@@ -73,6 +177,30 @@ function defaultIo() {
     stderr: process.stderr,
     env: process.env,
   };
+}
+
+/**
+ * Subcommands are dispatched before the argument parser runs, so they pick up
+ * --config here. Without this, anyone with a custom catalog could not store a key
+ * for a provider defined only in it.
+ */
+function extractConfigPath(argv) {
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (arg === '--config' || arg === '-c') {
+      const value = argv[index + 1];
+      if (!value || value.startsWith('-')) throw new Error(`${arg} requires a file path`);
+      argv.splice(index, 2);
+      return value;
+    }
+    if (arg.startsWith('--config=')) {
+      const value = arg.slice('--config='.length);
+      if (!value) throw new Error('--config requires a file path');
+      argv.splice(index, 1);
+      return value;
+    }
+  }
+  return null;
 }
 
 async function resolveProvider({ config, requested, io }) {
@@ -312,5 +440,49 @@ function redactEnv(env) {
 }
 
 function helpText() {
-  return `copilot-byok - switch GitHub Copilot CLI between native and BYOK providers\n\nUsage:\n  copilot-byok [options] [-- Copilot args...]\n\nOptions:\n  -P, --provider <id>       Provider id or alias\n      --native              Run GitHub Copilot CLI without BYOK\n  -m, --model <model>       Provider wire model for BYOK, native model for --native\n  -c, --config <path>       Provider config JSON path\n      --list-models         Print ranked models for the selected provider\n      --no-model-prompt     Use automatic default model\n      --offline             Prevent Copilot from contacting GitHub in BYOK mode\n      --wire-api <api>      BYOK wire API: completions or responses\n      --dry-run             Print command/env without launching Copilot\n  -h, --help                Show this help\n  -v, --version             Print the copilot-byok version\n\nExamples:\n  copilot-byok --provider chutes --no-model-prompt\n  copilot-byok --provider openrouter --offline --no-model-prompt\n  copilot-byok --provider alibaba-token-plan --wire-api responses --no-model-prompt\n  copilot-byok --provider fireworks --model accounts/fireworks/models/minimax-m2p5 -p "fix the bug"\n  copilot-byok --native --model claude-sonnet-4.6\n`;
+  return `copilot-byok - your own provider models inside the GitHub Copilot CLI /model picker
+
+Usage:
+  copilot-byok [options] [-- Copilot args...]
+
+By default it starts a local router: Copilot launches as usual, authenticated with
+GitHub, and /model lists the GitHub models together with your providers'.
+
+Options:
+      --list-providers      List providers and which ones are usable already
+      --native              Start Copilot without the router, GitHub models only
+  -m, --model <id>          Starting model (picker id, e.g. byok-openai-gpt-5-5)
+  -c, --config <path>       Provider configuration file
+      --upstream <url>      Force the Copilot API tier (individual/business/enterprise)
+      --dry-run             Print what would start, then exit
+  -h, --help                Show this help
+  -v, --version             Print the copilot-byok version
+
+Credentials:
+  copilot-byok keys list            Show where each provider's key comes from
+  copilot-byok keys set <provider>  Store a key (prompted, never echoed)
+  copilot-byok keys remove <id>     Delete a stored key
+  copilot-byok keys path            Print the key store location
+
+In-session command:
+  copilot-byok extension install    Add /byok to Copilot (needs --experimental)
+  copilot-byok extension status
+  copilot-byok extension uninstall
+
+Classic mode (one provider per session, without the GitHub models):
+      --legacy              Use the COPILOT_PROVIDER_* variables
+  -P, --provider <id>       Provider to use
+      --list-models         List the provider's models
+      --no-model-prompt     Skip the interactive model choice
+      --offline             Prevent Copilot from contacting GitHub
+      --wire-api <api>      completions or responses
+
+Examples:
+  copilot-byok                                   # picker with GitHub + BYOK models
+  copilot-byok --list-providers
+  copilot-byok keys set anthropic
+  copilot-byok -- -p "fix the bug"               # arguments go to Copilot
+  copilot-byok --legacy --provider chutes --no-model-prompt
+  copilot-byok --native --model claude-sonnet-4.6
+`;
 }

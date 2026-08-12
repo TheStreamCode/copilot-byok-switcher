@@ -1,59 +1,148 @@
 # Troubleshooting
 
-## Copilot CLI is not found
+## No BYOK models appear in `/model`
 
-Install GitHub Copilot CLI and confirm that the standalone executable is available:
+Check which providers are active:
+
+```sh
+copilot-byok --list-providers
+```
+
+A provider activates only when one of its environment variables holds a key. If
+the list shows everything as inactive, the switcher starts Copilot with GitHub
+models only and says so on stderr.
+
+Remember that variables set in one shell do not reach another: export the key and
+start `copilot-byok` from the same session.
+
+## The models were there, now they are gone
+
+The router relies on `COPILOT_API_URL`, an internal Copilot CLI variable that is
+not part of its documented interface. A CLI update can rename it or change how it
+behaves. To confirm that is the cause:
+
+```sh
+copilot-byok --dry-run     # should print a router URL and the model ids
+copilot --version          # note the version that broke it
+```
+
+Please open an issue with that version number. Meanwhile `copilot-byok --native`
+runs a stock session, and `--legacy` still gives you one BYOK provider through the
+officially documented `COPILOT_PROVIDER_*` variables.
+
+## `Unknown BYOK model`
+
+The catalog changed while a session was running — for example after editing your
+config or running `npm run catalog:update`. Restart `copilot-byok`; Copilot may
+also have remembered the old id as your default, in which case pick a model from
+`/model` again.
+
+## A provider returns 401 or 403
+
+That status comes from the provider, not from GitHub: the key for that specific
+provider is missing, wrong or expired. GitHub authentication is separate and
+unaffected — the same session can still use GitHub models.
+
+Check which variable the switcher is reading with `copilot-byok --list-providers`.
+
+## A provider returns 404 on a model
+
+The model name in your config does not exist upstream. Names drift; list what the
+provider actually offers:
+
+```sh
+copilot-byok --legacy --provider <id> --list-models
+```
+
+Then update `models` in your config, or run `npm run catalog:update` if you use
+the built-in catalog.
+
+## The agent starts but fails mid-task
+
+Almost always a capability mismatch: the model does not really support tool
+calling, and the harness discovers it once it tries to use a tool. The generated
+catalog only publishes models that report tool support, but a hand-written config
+entry can claim anything. Verify the model supports function calling and
+streaming before adding it.
+
+## Copilot CLI is not found
 
 ```sh
 copilot --version
 ```
 
-If it uses a custom name or path, set `COPILOT_BIN` before launching the switcher:
+If the executable has another name or path:
 
 ```sh
-COPILOT_BIN=/path/to/copilot copilot-byok --native
+COPILOT_BIN=/path/to/copilot copilot-byok
 ```
 
 PowerShell:
 
 ```powershell
 $env:COPILOT_BIN = 'C:\path\to\copilot.exe'
-copilot-byok --native
+copilot-byok
 ```
 
-## A provider credential is unavailable
+The launcher already prefers a working standalone CLI over the known stale VS Code
+shim.
 
-Set the environment variable documented for the selected provider in the [provider table](../README.md#built-in-providers), then start a new command from the same shell. Do not put credentials in `providers.json` or pass them as command-line arguments.
+## Business or Enterprise account
 
-Use `copilot-byok --provider <id> --dry-run` to inspect the resolved configuration. Secret values remain redacted.
-
-## Ollama is unavailable or returns no models
-
-Confirm that Ollama is running and that at least one compatible text model is installed:
+The router detects the right Copilot API tier automatically by probing the
+individual, business and enterprise hosts in order. To skip detection:
 
 ```sh
-ollama list
-ollama serve
+copilot-byok --upstream https://api.business.githubcopilot.com
 ```
 
-Then select an installed model explicitly:
+or set `COPILOT_BYOK_UPSTREAM`. Note that Copilot Enterprise owners can add custom
+models natively from enterprise settings, which shows them in the picker without
+this tool.
+
+## Ollama or LM Studio returns nothing
+
+Both ship disabled in the catalog because they have no keys to detect. Add them in
+your own config with the models you have pulled locally, and make sure the server
+is running:
 
 ```sh
-copilot-byok --provider ollama --model <model>
+curl http://127.0.0.1:11434/v1/models    # Ollama
+curl http://127.0.0.1:1234/v1/models     # LM Studio
 ```
 
-## The model catalog times out
+## A request hangs
 
-Catalog requests time out after 10 seconds by default. Confirm that the provider endpoint is reachable. Custom providers can increase `modelsTimeoutMs` up to `300000`; keep the timeout bounded and avoid disabling it.
+The router gives up on a provider that accepts the connection and then sends
+nothing for ten minutes, answering `502` with `no data for 600s`. Reasoning models
+can legitimately think for minutes, which is why the limit is generous. Adjust it
+with `COPILOT_BYOK_PROVIDER_TIMEOUT_MS` if your provider is slower, or lower it to
+fail faster.
 
-If a provider does not expose a usable catalog, configure `defaultModel` or pass `--model` explicitly.
+## Inspecting what the router does
 
-## Copilot reports an unsupported model or feature
+The router writes what it did to a log rather than to the screen, because Copilot
+draws a full-screen interface and anything printed over it garbles the display.
+If something went wrong you get one line after Copilot exits:
 
-The provider wire model and Copilot catalog model serve different purposes. Keep the provider's model name in `defaultModel` or `--model`, and use a Copilot-recognized `catalogModelId` for internal capabilities. See [Why `catalogModelId` and the wire model are separate](../README.md#why-catalogmodelid-and-the-wire-model-are-separate).
+```
+copilot-byok: 3 router errors during this session — see ~/.config/copilot-byok/router.log
+```
 
-Use `--wire-api responses` only when the selected provider and model officially support the Responses API. Otherwise keep the provider's default wire API.
+The log records forwarded requests, model injections and errors, with a timestamp
+and the process id. Credentials are never written to it. On Windows it lives in
+`%APPDATA%\copilot-byokouter.log`; `COPILOT_BYOK_LOG` overrides the path, and
+the file is truncated once it passes 2 MB.
 
-## More help
+To watch events live instead — accepting that the display will be disturbed:
 
-Search the [existing issues](https://github.com/TheStreamCode/copilot-byok-switcher/issues) before opening a bug report. Include the operating system, Node.js version, Copilot CLI version, provider id, sanitized command, and full error message. Never include API keys or tokens.
+```sh
+COPILOT_BYOK_DEBUG=1 copilot-byok
+```
+
+## A corporate proxy is in the way
+
+The router opens its own HTTPS connection to GitHub, so it honours the usual
+`HTTPS_PROXY` and `NO_PROXY` variables of the Node.js process. Make sure
+`127.0.0.1` is in `NO_PROXY` so Copilot's own traffic to the router is not sent
+through the proxy.

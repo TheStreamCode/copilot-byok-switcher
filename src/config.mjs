@@ -1,4 +1,5 @@
 import { access, readFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
@@ -10,229 +11,23 @@ const TRANSPORTS = new Set(['http', 'websockets']);
 const MODELS_AUTH_MODES = new Set([true, false, 'none', 'bearer', 'x-api-key', 'api-key']);
 const SECRET_QUERY_NAME_PATTERN = /(^|[-_.])(api[-_.]?key|subscription[-_.]?key|auth(?:orization)?|bearer|credential|password|secret|signature|sig|token)([-_.]|$)/i;
 
-const DEFAULT_PROVIDERS = [
-  {
-    id: 'chutes',
-    name: 'Chutes',
-    type: 'openai',
-    baseUrl: 'https://llm.chutes.ai/v1',
-    apiKeyEnv: ['CHUTES_API_KEY', 'COPILOT_CHUTES_API_KEY'],
-    modelsUrl: 'https://llm.chutes.ai/v1/models',
-    catalogModelId: 'gpt-4.1',
-    requireToolSupport: true,
-  },
-  {
-    id: 'opencode-go',
-    aliases: ['go', 'opencode'],
-    name: 'OpenCode Go',
-    type: 'anthropic',
-    baseUrl: 'https://opencode.ai/zen/go',
-    apiKeyEnv: ['OPENCODE_GO_API_KEY', 'OPENCODE_API_KEY', 'CLAUDE_GO_API_KEY'],
-    modelsUrl: 'https://opencode.ai/zen/go/v1/models',
-    catalogModelId: 'claude-sonnet-4.6',
-    defaultModel: 'minimax-m3',
-    modelIncludePrefixes: ['minimax-', 'qwen'],
-    requireToolSupport: false,
-  },
-  {
-    id: 'fireworks',
-    aliases: ['fire', 'fireworks-ai'],
-    name: 'Fireworks AI',
-    type: 'anthropic',
-    baseUrl: 'https://api.fireworks.ai/inference',
-    apiKeyEnv: ['FIREWORKS_API_KEY', 'FIREWORKS_KEY', 'CLAUDE_FIRE_API_KEY'],
-    modelsUrl: 'https://api.fireworks.ai/v1/accounts/fireworks/models?filter=supports_serverless%3Dtrue&pageSize=200',
-    catalogModelId: 'claude-sonnet-4.6',
-    requireToolSupport: true,
-  },
-  {
-    id: 'openrouter',
-    aliases: ['or'],
-    name: 'OpenRouter',
-    type: 'openai',
-    baseUrl: 'https://openrouter.ai/api/v1',
-    apiKeyEnv: ['OPENROUTER_API_KEY', 'COPILOT_OPENROUTER_API_KEY'],
-    modelsUrl: 'https://openrouter.ai/api/v1/models?supported_parameters=tools&output_modalities=text',
-    catalogModelId: 'gpt-4.1',
-    defaultModel: 'openrouter/auto',
-    requireToolSupport: true,
-  },
-  {
-    id: 'moonshot',
-    aliases: ['kimi', 'moonshot-ai', 'kimi-ai'],
-    name: 'Moonshot AI (Kimi)',
-    type: 'openai',
-    baseUrl: 'https://api.moonshot.ai/v1',
-    apiKeyEnv: ['MOONSHOT_API_KEY', 'KIMI_API_KEY', 'COPILOT_MOONSHOT_API_KEY'],
-    modelsUrl: 'https://api.moonshot.ai/v1/models',
-    catalogModelId: 'gpt-4.1',
-    defaultModel: 'kimi-k3',
-    requireToolSupport: true,
-  },
-  {
-    id: 'deepseek',
-    aliases: ['deepseek-ai'],
-    name: 'DeepSeek AI',
-    type: 'openai',
-    baseUrl: 'https://api.deepseek.com',
-    apiKeyEnv: ['DEEPSEEK_API_KEY', 'COPILOT_DEEPSEEK_API_KEY'],
-    modelsUrl: 'https://api.deepseek.com/models',
-    catalogModelId: 'gpt-4.1',
-    defaultModel: 'deepseek-v4-pro',
-  },
-  {
-    id: 'zai',
-    aliases: ['z-ai', 'glm'],
-    name: 'Z.ai Coding Plan',
-    type: 'openai',
-    baseUrl: 'https://api.z.ai/api/coding/paas/v4',
-    apiKeyEnv: ['ZAI_API_KEY', 'Z_AI_API_KEY', 'GLM_API_KEY', 'COPILOT_ZAI_API_KEY'],
-    modelsUrl: 'https://api.z.ai/api/coding/paas/v4/models',
-    catalogModelId: 'gpt-4.1',
-    defaultModel: 'glm-5.2',
-  },
-  {
-    id: 'minimax',
-    aliases: ['minimax-ai'],
-    name: 'MiniMax',
-    type: 'openai',
-    baseUrl: 'https://api.minimax.io/v1',
-    apiKeyEnv: ['MINIMAX_API_KEY', 'COPILOT_MINIMAX_API_KEY'],
-    modelsUrl: 'https://api.minimax.io/v1/models',
-    catalogModelId: 'gpt-4.1',
-    defaultModel: 'MiniMax-M3',
-  },
-  {
-    id: 'alibaba-token-plan',
-    aliases: ['alibaba', 'qwen', 'bailian', 'dashscope', 'modelstudio'],
-    name: 'Alibaba Model Studio Token Plan',
-    type: 'openai',
-    baseUrl: 'https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1',
-    apiKeyEnv: [
-      'ALIBABA_TOKEN_PLAN_API_KEY',
-      'DASHSCOPE_TOKEN_PLAN_API_KEY',
-      'BAILIAN_TOKEN_PLAN_API_KEY',
-    ],
-    catalogModelId: 'gpt-4.1',
-    defaultModel: 'qwen3.7-plus',
-    requireToolSupport: true,
-  },
-  {
-    id: 'tencent-token-plan',
-    aliases: ['tencent', 'tokenhub', 'tencent-tokenhub'],
-    name: 'Tencent Cloud Token Plan',
-    type: 'openai',
-    baseUrl: 'https://api.lkeap.cloud.tencent.com/plan/v3',
-    apiKeyEnv: ['TENCENT_TOKEN_PLAN_API_KEY', 'TOKENHUB_TOKEN_PLAN_API_KEY'],
-    catalogModelId: 'gpt-4.1',
-    defaultModel: 'tc-code-latest',
-    requireToolSupport: true,
-  },
-  {
-    id: 'openai',
-    name: 'OpenAI',
-    type: 'openai',
-    baseUrl: 'https://api.openai.com/v1',
-    apiKeyEnv: ['OPENAI_API_KEY', 'COPILOT_OPENAI_API_KEY'],
-    modelsUrl: 'https://api.openai.com/v1/models',
-    catalogModelId: 'gpt-4.1',
-    defaultModel: 'gpt-5.6-sol',
-    wireApi: 'responses',
-  },
-  {
-    id: 'anthropic',
-    aliases: ['claude'],
-    name: 'Anthropic',
-    type: 'anthropic',
-    baseUrl: 'https://api.anthropic.com',
-    apiKeyEnv: ['ANTHROPIC_API_KEY', 'COPILOT_ANTHROPIC_API_KEY'],
-    modelsUrl: 'https://api.anthropic.com/v1/models',
-    modelsAuth: 'x-api-key',
-    modelsHeaders: { 'anthropic-version': '2023-06-01' },
-    catalogModelId: 'claude-sonnet-4.6',
-    defaultModel: 'claude-sonnet-4-6',
-  },
-  {
-    id: 'ollama',
-    name: 'Ollama',
-    type: 'openai',
-    baseUrl: 'http://localhost:11434/v1',
-    authRequired: false,
-    modelsUrl: 'http://localhost:11434/v1/models',
-    catalogModelId: 'gpt-4.1',
-  },
-  {
-    id: 'opencode-go-openai',
-    aliases: ['go-openai', 'opencode-chat'],
-    name: 'OpenCode Go (OpenAI)',
-    type: 'openai',
-    baseUrl: 'https://opencode.ai/zen/go/v1',
-    apiKeyEnv: ['OPENCODE_GO_API_KEY', 'OPENCODE_API_KEY', 'CLAUDE_GO_API_KEY'],
-    modelsUrl: 'https://opencode.ai/zen/go/v1/models',
-    catalogModelId: 'gpt-4.1',
-    defaultModel: 'deepseek-v4-pro',
-    modelIncludePrefixes: ['grok-', 'glm-', 'kimi-', 'deepseek-', 'mimo-', 'hy'],
-    requireToolSupport: false,
-  },
-  {
-    id: 'groq',
-    name: 'Groq',
-    type: 'openai',
-    baseUrl: 'https://api.groq.com/openai/v1',
-    apiKeyEnv: ['GROQ_API_KEY', 'COPILOT_GROQ_API_KEY'],
-    modelsUrl: 'https://api.groq.com/openai/v1/models',
-    catalogModelId: 'gpt-4.1',
-    defaultModel: 'openai/gpt-oss-120b',
-    requireToolSupport: true,
-  },
-  {
-    id: 'xai',
-    aliases: ['grok'],
-    name: 'xAI',
-    type: 'openai',
-    baseUrl: 'https://api.x.ai/v1',
-    apiKeyEnv: ['XAI_API_KEY', 'COPILOT_XAI_API_KEY'],
-    modelsUrl: 'https://api.x.ai/v1/models',
-    catalogModelId: 'gpt-4.1',
-    defaultModel: 'grok-4.5',
-    requireToolSupport: true,
-  },
-  {
-    id: 'mistral',
-    aliases: ['mistral-ai'],
-    name: 'Mistral AI',
-    type: 'openai',
-    baseUrl: 'https://api.mistral.ai/v1',
-    apiKeyEnv: ['MISTRAL_API_KEY', 'COPILOT_MISTRAL_API_KEY'],
-    modelsUrl: 'https://api.mistral.ai/v1/models',
-    catalogModelId: 'gpt-4.1',
-    defaultModel: 'devstral-latest',
-    requireToolSupport: true,
-  },
-  {
-    id: 'zai-api',
-    aliases: ['zai-payg', 'glm-api'],
-    name: 'Z.ai API',
-    type: 'openai',
-    baseUrl: 'https://api.z.ai/api/paas/v4',
-    apiKeyEnv: ['ZAI_API_KEY', 'Z_AI_API_KEY', 'GLM_API_KEY', 'COPILOT_ZAI_API_KEY'],
-    modelsUrl: 'https://api.z.ai/api/paas/v4/models',
-    catalogModelId: 'gpt-4.1',
-    defaultModel: 'glm-5.2',
-  },
-];
+// Default catalog: generated from models.dev with `npm run catalog:update`, so
+// context windows and capabilities stay aligned with what providers actually offer.
+const DEFAULT_PROVIDERS = JSON.parse(
+  readFileSync(new URL('./providers.default.json', import.meta.url), 'utf8')
+).providers;
 
-export async function loadConfig({ configPath, env = process.env } = {}) {
+export async function loadConfig({ configPath, env = process.env, secrets = {} } = {}) {
   const explicitPath = configPath || env.COPILOT_BYOK_CONFIG;
-  if (explicitPath) return loadConfigFromPath(explicitPath, env);
+  if (explicitPath) return loadConfigFromPath(explicitPath, env, secrets);
 
   const defaultPath = defaultConfigPath(env);
-  if (await fileExists(defaultPath)) return loadConfigFromPath(defaultPath, env);
+  if (await fileExists(defaultPath)) return loadConfigFromPath(defaultPath, env, secrets);
 
-  return normalizeConfig({ providers: DEFAULT_PROVIDERS }, env);
+  return normalizeConfig({ providers: DEFAULT_PROVIDERS }, env, secrets);
 }
 
-export async function loadConfigFromPath(configPath, env = process.env) {
+export async function loadConfigFromPath(configPath, env = process.env, secrets = {}) {
   const contents = await readFile(configPath, 'utf8');
   let parsed;
   try {
@@ -241,7 +36,7 @@ export async function loadConfigFromPath(configPath, env = process.env) {
     throw new Error(`Invalid JSON in provider config ${configPath}: ${error.message}`, { cause: error });
   }
 
-  return normalizeConfig(parsed, env);
+  return normalizeConfig(parsed, env, secrets);
 }
 
 export function findProvider(config, requested) {
@@ -255,18 +50,18 @@ export function findProvider(config, requested) {
   }) || null;
 }
 
-function normalizeConfig(config, env) {
+function normalizeConfig(config, env, secrets = {}) {
   if (!isRecord(config) || !Array.isArray(config.providers)) {
     throw new Error('Provider config must be an object with a providers array');
   }
 
-  const providers = config.providers.map((provider, index) => normalizeProvider(provider, env, index));
+  const providers = config.providers.map((provider, index) => normalizeProvider(provider, env, index, secrets));
   assertUniqueProviderNames(providers);
 
   return { ...config, providers };
 }
 
-function normalizeProvider(provider, env, index) {
+function normalizeProvider(provider, env, index, secrets = {}) {
   if (!isRecord(provider)) {
     throw new Error(`Provider at index ${index} must be an object`);
   }
@@ -277,7 +72,11 @@ function normalizeProvider(provider, env, index) {
     throw new Error(`Provider id "${id}" may contain only letters, numbers, dots, underscores, and hyphens`);
   }
 
-  const type = requiredString(provider.type, `Provider ${name} requires a type`).toLowerCase();
+  // Catalog providers are OpenAI-compatible: `type` only matters to the legacy
+  // mode (COPILOT_PROVIDER_*), where it distinguishes anthropic and azure.
+  const type = provider.type == null
+    ? 'openai'
+    : requiredString(provider.type, `Provider ${name} requires a type`).toLowerCase();
   if (!PROVIDER_TYPES.has(type)) {
     throw new Error(`Provider ${name} has unsupported type "${provider.type}"`);
   }
@@ -312,12 +111,15 @@ function normalizeProvider(provider, env, index) {
   validateProviderOptions(provider, name, type);
   rejectSecretModelHeaders(provider, name);
 
+  const models = normalizeModels(provider.models, name);
+
   return {
     ...provider,
     id,
     name,
     type,
     baseUrl,
+    models,
     ...(modelsUrl ? { modelsUrl } : {}),
     ...(aliases ? { aliases } : {}),
     ...(apiKeyEnv ? { apiKeyEnv } : {}),
@@ -327,9 +129,35 @@ function normalizeProvider(provider, env, index) {
     ...(azureApiVersion ? { azureApiVersion } : {}),
     ...(modelIncludePrefixes ? { modelIncludePrefixes } : {}),
     ...(modelExcludePrefixes ? { modelExcludePrefixes } : {}),
-    apiKey: readFirstEnv(env, apiKeyEnv),
+    // The environment wins over the optional key store, so a shell variable can
+    // always override a stored key for one session.
+    apiKey: readFirstEnv(env, apiKeyEnv) ?? secrets[id] ?? null,
     bearerToken: readFirstEnv(env, bearerTokenEnv),
   };
+}
+
+/** Models published to the Copilot picker. Absent => the provider is legacy-only. */
+function normalizeModels(value, providerName) {
+  if (value == null) return [];
+  if (!Array.isArray(value)) {
+    throw new Error(`Provider ${providerName} models must be an array`);
+  }
+
+  return value.map((entry, index) => {
+    const where = `Provider ${providerName} models[${index}]`;
+    if (typeof entry === 'string') return { model: requiredString(entry, `${where} must be a non-empty string`) };
+    if (!isRecord(entry)) throw new Error(`${where} must be a string or an object`);
+
+    const model = requiredString(entry.model, `${where} requires a model name`);
+    for (const field of ['contextWindow', 'maxOutputTokens']) {
+      if (entry[field] != null && (!Number.isInteger(entry[field]) || entry[field] <= 0)) {
+        throw new Error(`${where} ${field} must be a positive integer`);
+      }
+    }
+    if (entry.label != null) requiredString(entry.label, `${where} label must be a non-empty string`);
+
+    return { ...entry, model };
+  });
 }
 
 function validateProviderOptions(provider, name, type) {
@@ -398,11 +226,19 @@ function validateProviderOptions(provider, name, type) {
 }
 
 function rejectSecretModelHeaders(provider, name) {
-  const headers = provider.modelsHeaders || {};
-  for (const [headerName, value] of Object.entries(headers)) {
-    const combined = `${headerName}: ${value}`;
-    if (/authorization|cookie|session|credential|password|api[-_]?key|token|secret|bearer|x-auth/i.test(combined)) {
-      throw new Error(`Secret model headers are not allowed for provider ${name}. Use apiKeyEnv or bearerTokenEnv instead.`);
+  // `headers` reaches the real provider request, so it needs the same scrutiny as
+  // `modelsHeaders`, which only ever reaches the catalog endpoint.
+  const fields = [
+    { key: 'modelsHeaders', label: 'model headers' },
+    { key: 'headers', label: 'request headers' },
+  ];
+
+  for (const { key, label } of fields) {
+    for (const [headerName, value] of Object.entries(provider[key] || {})) {
+      const combined = `${headerName}: ${value}`;
+      if (/authorization|cookie|session|credential|password|api[-_]?key|token|secret|bearer|x-auth/i.test(combined)) {
+        throw new Error(`Secret ${label} are not allowed for provider ${name}. Use apiKeyEnv or bearerTokenEnv instead.`);
+      }
     }
   }
 }
@@ -436,7 +272,9 @@ function normalizeEnvNames(value, providerName, field) {
     }
   }
 
-  return Array.isArray(value) ? [...new Set(normalized)] : normalized[0];
+  // Always an array, even when the config gave a single string: every consumer
+  // iterates over these, and returning a bare string crashed them at runtime.
+  return [...new Set(normalized)];
 }
 
 function normalizeStringList(value, providerName, field) {

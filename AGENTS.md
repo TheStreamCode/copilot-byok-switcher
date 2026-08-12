@@ -6,10 +6,19 @@ Read this file before changing anything in this repository.
 ## Project overview
 
 `copilot-byok-switcher` is a published, public npm package (`copilot-byok-switcher`, MIT) that
-installs a single cross-platform CLI, `copilot-byok`. It launches GitHub Copilot CLI either in
-native mode or through a custom "bring your own key" (BYOK) model provider, by building the
-`COPILOT_*` environment variables for the child Copilot process only. It never modifies the user's
-shell profile and never writes credentials to disk.
+installs a single cross-platform CLI, `copilot-byok`. It publishes the user's own provider models
+into the GitHub Copilot CLI `/model` picker, alongside the GitHub ones, in a single session.
+
+It does this with a local router: Copilot is pointed at `127.0.0.1` through the `COPILOT_API_URL`
+variable, the router appends the configured models to `GET /models`, forwards `byok-*` requests to
+the matching provider, and passes everything else through to GitHub unchanged. There is no TLS
+interception. It never modifies the user's shell profile, and it writes credentials to disk only
+through the opt-in key store (`copilot-byok keys set` or `/byok`), never on its own initiative.
+
+`COPILOT_API_URL` is an internal Copilot CLI variable, absent from `copilot help environment`.
+Treat it as the project's main external risk: if a CLI release changes it, the router breaks and
+`--native` / `--legacy` are the fallbacks. Do not assume other undocumented variables exist —
+verify them against a real CLI before relying on any.
 
 Distribution channels actually configured:
 
@@ -34,12 +43,23 @@ There is no VS Code extension, no bundler, no compiled output, and no hosted dep
 ```text
 bin/copilot-byok.mjs      Executable entry point; only wires main() to process.exitCode
 src/args.mjs              Pure argument parser; no I/O
-src/cli.mjs               Orchestration: prompts, model catalog fetch, Copilot spawn
-src/config.mjs            Built-in provider presets + provider config loading and validation
+src/cli.mjs               Orchestration: router mode (default), legacy mode, native mode
+src/router.mjs            The local proxy: model injection, provider routing, passthrough
+src/catalog.mjs           Turns providers into the model entries Copilot expects from GET /models
+src/launcher.mjs          Starts the router on an ephemeral port and spawns Copilot against it
+src/upstream.mjs          Resolves the Copilot API tier (individual / business / enterprise)
+src/config.mjs            Provider config loading and validation; loads providers.default.json
+src/providers.default.json  Generated catalog — never edit by hand, run npm run catalog:update
+src/keystore.mjs          Optional on-disk key store (0600 / owner-only ACL)
+src/keys-command.mjs      `copilot-byok keys ...`
+src/extension-install.mjs `copilot-byok extension ...`; rewrites the template's package root
 src/copilot-bin.mjs       Resolves the Copilot executable, skipping the stale VS Code shim
-src/model-ranking.mjs     Pure ranking of provider model catalogs
+src/model-ranking.mjs     Pure ranking of provider model catalogs (legacy mode)
 src/process-env.mjs       Strips stale/secret variables from the child environment
-src/provider-env.mjs      Builds the COPILOT_* variables for a selected provider
+src/provider-env.mjs      Builds the COPILOT_PROVIDER_* variables (legacy mode)
+scripts/update-catalog.mjs  Rebuilds the catalog from models.dev
+scripts/catalog-sources.json  Curated provider/model selection feeding the generator
+extensions/byok/extension.mjs  The /byok slash command, copied into ~/.copilot/extensions/
 test/*.test.mjs           One suite per src module
 schemas/providers.schema.json  Published JSON Schema for providers.json
 examples/providers.example.json  Documented example configuration
@@ -81,9 +101,13 @@ There is no `dev`, `build`, `format`, or `type-check` script. Do not invent one 
 
 This project handles third-party provider API keys. Every change must preserve these guarantees:
 
-- Credentials are read **only** from environment variables named by `apiKeyEnv` / `bearerTokenEnv`.
-  Inline `apiKey`, `bearerToken`, and secret-bearing `modelsHeaders` in provider config files are rejected
-  by `src/config.mjs` — keep those checks.
+- Credentials come from environment variables named by `apiKeyEnv` / `bearerTokenEnv`, or from the
+  opt-in key store in `src/keystore.mjs`. The environment always wins over the store. Inline `apiKey`,
+  `bearerToken`, and secret-bearing `modelsHeaders` in provider config files are rejected by
+  `src/config.mjs` — keep those checks.
+- The key store is written `0600` with an owner-only ACL on Windows, and only ever populated from an
+  interactive prompt: never accept a key from argv, stdin pipes, or an environment variable meant for
+  something else. It must stay opt-in — nothing may create it implicitly.
 - Never print, log, or embed a credential value. `--dry-run` output must keep passing through `redactEnv()`,
   which masks any key matching `/KEY|TOKEN|SECRET|PASSWORD/i`.
 - Error messages must not reveal which environment variable holds a secret (covered by a test).
@@ -101,19 +125,35 @@ This project handles third-party provider API keys. Every change must preserve t
 
 ## Adding or changing a built-in provider
 
-1. Add the preset to `DEFAULT_PROVIDERS` in `src/config.mjs`, using only endpoints documented by the provider.
-2. For authenticated providers, add every credential environment name to `DEFAULT_SECRET_SOURCE_ENV` in
-   `src/process-env.mjs`. For intentionally authless providers, set `authRequired: false` and do not invent
-   a credential environment name.
-3. Mirror the entry in `examples/providers.example.json`.
-4. Add the row to the provider table in `README.md` **with a link to the official API documentation**.
-5. Update `docs/provider-verification.md` honestly: endpoint reachability, authenticated catalog access, and
-   end-to-end inference are three distinct evidence levels. Never claim a level that was not actually verified.
-6. Extend `test/config.test.mjs` to cover the id, aliases, base URL, model behavior, authentication requirement,
-   and credential environment names when applicable.
+The catalog is generated. **Never hand-edit `src/providers.default.json`** — it is overwritten.
 
-`catalogModelId` must be a model that exists in Copilot's built-in catalog (for `COPILOT_MODEL`);
-the provider's own model name goes on the wire as `COPILOT_PROVIDER_WIRE_MODEL`. Do not merge the two.
+1. Add the provider to `scripts/catalog-sources.json`, using only endpoints documented by the
+   provider, then run `npm run catalog:update`. List model ids under `models`; the generator fills
+   in context window and capabilities from models.dev and drops anything without tool-calling
+   support. Leave `models` empty when names are account-specific (Volcengine endpoint ids) or the
+   catalog is too large to curate (OpenRouter).
+2. Verify the endpoint yourself before adding it: `POST {baseUrl}/chat/completions` with an invalid
+   key must answer `400`/`401`/`403`, not `404`. A `404` usually means the path is wrong.
+3. For authenticated providers, add every credential environment name to `DEFAULT_SECRET_SOURCE_ENV`
+   in `src/process-env.mjs`. For intentionally authless providers set `authRequired: false` and do
+   not invent a credential environment name.
+4. Add the row to the provider table in `README.md`.
+5. Update `docs/provider-verification.md` honestly: endpoint reachability, authenticated catalog
+   access, and end-to-end inference are three distinct evidence levels. Never claim a level that was
+   not actually verified.
+
+Model entries must not overstate capabilities. Copilot's harness trusts what `capabilities.supports`
+declares: a model advertised with `tool_calls` that cannot call tools fails in the middle of a
+session instead of failing cleanly at startup.
+
+In legacy mode only, `catalogModelId` must be a model that exists in Copilot's built-in catalog (for
+`COPILOT_MODEL`), while the provider's own model name goes on the wire as
+`COPILOT_PROVIDER_WIRE_MODEL`. Do not merge the two.
+
+Anything a user needs at runtime must be listed in `files` in `package.json`.
+`extensions/` and `scripts/` are there for that reason: without them
+`copilot-byok extension install` and `npm run catalog:update` break for anyone
+who installed from npm rather than from a clone.
 
 ## Compatibility and anti-breaking-change rules
 

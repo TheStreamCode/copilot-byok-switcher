@@ -4,6 +4,87 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-08-12
+
+Your provider models now appear inside the Copilot `/model` picker, in the same
+session as the GitHub ones, instead of replacing them.
+
+### Added
+
+- A local router (`src/router.mjs`) placed in front of the Copilot API through the
+  `COPILOT_API_URL` variable. It appends the configured models to `GET /models`,
+  forwards `byok-*` requests to the matching provider, and passes everything else
+  through to GitHub untouched. No TLS interception is involved.
+- Automatic detection of the Copilot API tier (individual, business, enterprise),
+  overridable with `--upstream` or `COPILOT_BYOK_UPSTREAM`.
+- A generated provider catalog covering 30 providers: OpenAI, Anthropic, Google
+  Gemini, xAI, Mistral, Groq, Cerebras, Together, DeepInfra, Fireworks,
+  OpenRouter, DeepSeek, Alibaba Qwen (international and China), Z.AI, Zhipu,
+  Moonshot Kimi, MiniMax, StepFun, ByteDance Doubao, Tencent Hunyuan, Baidu
+  Qianfan, SiliconFlow, ModelScope, Chutes, OpenCode Zen and Go, Alibaba Token
+  Plan, plus local Ollama and LM Studio.
+- `npm run catalog:update`, which rebuilds the catalog from models.dev so context
+  windows and capabilities stay accurate. Models without tool-calling support are
+  excluded rather than published with wrong metadata.
+- `--list-providers`, showing which providers are usable now and which
+  environment variable unlocks each of the others.
+- A `models` array on providers, with per-model label, context window and output
+  limit, and an `enabled` flag for entries that ship disabled.
+- A `/byok` slash command for use inside a Copilot session, installed with
+  `copilot-byok extension install`. It lists the providers with their state and
+  asks for the key of the one you pick. Copilot CLI extensions are gated behind
+  `--experimental`. Note that Copilot caches its model list per session, so models
+  unlocked this way appear the next time copilot-byok starts.
+- Tests for the catalog, the router (including provider forwarding and model-name
+  translation), the upstream resolver, the key store and the launcher.
+
+### Fixed
+
+- A provider or GitHub connection that broke mid-stream left the session waiting
+  forever: `pipe()` does not end the destination on a source error, and an
+  `IncomingMessage` with no error listener discards the error. Both are handled,
+  and the response is closed.
+- Cancelling a generation now aborts the provider request instead of letting it
+  stream to completion — paid providers were still billing for abandoned answers.
+- A single-string `apiKeyEnv` or `bearerTokenEnv`, which the schema allows,
+  crashed `--list-providers`, `keys list`, and the router itself after startup.
+  Environment names are always normalized to an array now.
+- Advertised prompt and output limits could exceed the model's own context window
+  (Grok 4.5 claimed 500k prompt plus 500k output of a 500k window), which made
+  providers reject requests once Copilot filled the prompt to the stated limit.
+- Custom `headers` were spread after the computed ones, so a gateway config could
+  override `host` and `content-length` and corrupt the request. They are also
+  checked for inline secrets now, like `modelsHeaders` already were.
+- A network blip during the first upstream probe pinned Business and Enterprise
+  accounts to the individual API host for the rest of the session.
+- `--upstream` accepted anything, then failed every request with `Invalid URL`.
+- Single-provider flags (`--provider`, `--list-models`, `--offline`, `--wire-api`,
+  `--no-model-prompt`) were parsed and silently ignored in router mode; they now
+  say they need `--legacy`.
+- `keys` and `extension` ignored `--config`, so a provider defined only in a
+  custom catalog could not be given a key.
+- The key store was written in place, so an interrupted write truncated it and
+  concurrent writers lost updates. It is written to a temp file and renamed.
+- Model names that slugify to the same id silently dropped one model from the
+  picker; the collision is reported.
+- Restored `process.exitCode` in place of `process.exit()`, which could truncate
+  piped stdout on POSIX.
+
+### Changed
+
+- Running `copilot-byok` with no arguments now starts the router; providers
+  activate only when their key is present, so the picker stays short.
+- Providers default to the OpenAI-compatible wire format: `type` is only needed
+  for the Anthropic and Azure shapes used by the legacy mode.
+- The published example is now a customization sample rather than a copy of the
+  built-in catalog.
+
+### Kept
+
+- The original single-provider behaviour, now behind `--legacy`, including
+  `--offline`, `--wire-api`, `--list-models` and model ranking.
+- `--native` for a stock Copilot session with no router.
+
 ## [0.3.0] - 2026-08-08
 
 ### Added
