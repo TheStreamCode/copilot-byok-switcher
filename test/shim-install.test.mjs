@@ -20,7 +20,7 @@ function captureWritable() {
   return stream;
 }
 
-async function scratchIo(extraEnv = {}) {
+async function scratchIo() {
   const dir = await mkdtemp(join(tmpdir(), 'copilot-byok-shim-'));
   const stdout = captureWritable();
   const stderr = captureWritable();
