@@ -80,6 +80,7 @@ All commands run from the repository root.
 | Test | `npm test` |
 | Test with coverage | `npm run test:coverage` |
 | Full quality gate | `npm run check` (lint + test) |
+| Verify curated models still exist | `npm run catalog:audit` |
 | Package contents check | `npm pack --dry-run` |
 | Dependency audit | `npm audit --omit=dev --audit-level=high` |
 | Local install for manual testing | `npm link` then `copilot-byok --help` |
@@ -135,7 +136,10 @@ The catalog is generated. **Never hand-edit `src/providers.default.json`** — i
    in context window and capabilities from models.dev and drops anything without tool-calling
    support. Leave `models` empty when names are account-specific (Volcengine endpoint ids) or the
    catalog is too large to curate (OpenRouter).
-2. Verify the endpoint yourself before adding it: `POST {baseUrl}/chat/completions` with an invalid
+2. Run `npm run catalog:audit` after changing any curated list. A model that does
+   not exist on the provider is worse than a missing one: it is offered to the user
+   and fails only when picked.
+3. Verify the endpoint yourself before adding it: `POST {baseUrl}/chat/completions` with an invalid
    key must answer `400`/`401`/`403`, not `404`. A `404` usually means the path is wrong.
 3. For authenticated providers, add every credential environment name to `DEFAULT_SECRET_SOURCE_ENV`
    in `src/process-env.mjs`. For intentionally authless providers set `authRequired: false` and do

@@ -379,7 +379,6 @@
       "models": [
         "qwen3.8-max",
         "deepseek-v4-pro",
-        "kimi-k2.6",
         "glm-5.2"
       ]
     },

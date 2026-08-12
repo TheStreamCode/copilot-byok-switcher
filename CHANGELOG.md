@@ -4,6 +4,22 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-08-12
+
+### Fixed
+
+- Removed `kimi-k2.6` from the Alibaba Token Plan list: that plan does not serve
+  it, so it was offered and would have failed on selection.
+
+### Added
+
+- `npm run catalog:audit` checks every curated model against its provider's live
+  catalog and exits non-zero when one does not exist. Providers with a public
+  catalog are checked without credentials; the others use a configured key and are
+  reported as unverifiable when there is none. The audit across all 30 providers
+  found exactly one wrong entry, the one above; chutes, opencode-go and
+  opencode-zen check out fully, and twelve providers ship no curated list at all.
+
 ## [1.4.0] - 2026-08-12
 
 ### Added

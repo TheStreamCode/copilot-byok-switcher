@@ -689,14 +689,6 @@
           "reasoning": true
         },
         {
-          "model": "kimi-k2.6",
-          "label": "Kimi K2.6 (Alibaba Token Plan)",
-          "contextWindow": 262144,
-          "maxOutputTokens": 262144,
-          "reasoning": true,
-          "vision": true
-        },
-        {
           "model": "glm-5.2",
           "label": "GLM-5.2 (Alibaba Token Plan)",
           "contextWindow": 1000000,
