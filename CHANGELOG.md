@@ -4,6 +4,16 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [1.4.2] - 2026-08-12
+
+### Changed
+
+- Documentation catches up with the last few releases: the `shim` commands and
+  `npm run catalog:audit` were missing from the README, as were several
+  environment variables that only appeared in the troubleshooting guide. There is
+  now one table listing all of them, so nothing is discoverable only by reading
+  the source.
+
 ## [1.4.1] - 2026-08-12
 
 ### Fixed

@@ -330,7 +330,39 @@ copilot-byok keys path            # print the key store location
 copilot-byok extension install    # add the /byok command to Copilot
 copilot-byok extension status
 copilot-byok extension uninstall
+
+copilot-byok shim install         # make plain `copilot` use the router
+copilot-byok shim status          # which mechanism is actually in effect
+copilot-byok shim uninstall
 ```
+
+### Environment variables
+
+Everything has a working default; these are for when you need to change one.
+
+| Variable | Effect |
+|---|---|
+| `COPILOT_BIN` | Path to the real Copilot CLI, when it is not on `PATH` under that name |
+| `COPILOT_BYOK_CONFIG` | Provider configuration file (same as `--config`) |
+| `COPILOT_BYOK_UPSTREAM` | Force the Copilot API tier (same as `--upstream`) |
+| `COPILOT_BYOK_KEYSTORE` | Where stored keys live |
+| `COPILOT_BYOK_MODEL_CACHE` | Where the last model list each key returned is kept |
+| `COPILOT_BYOK_LOG` | Router log location |
+| `COPILOT_BYOK_PROGRESS=off` | Turn off the startup progress line |
+| `COPILOT_BYOK_ASCII=1` | ASCII spinner, for consoles that cannot render Braille |
+| `COPILOT_BYOK_DEBUG=1` | Stream router events live instead of only to the log |
+| `COPILOT_BYOK_PROVIDER_TIMEOUT_MS` | Idle timeout on a provider request (default 10 minutes) |
+
+### Keeping the catalog honest
+
+```sh
+npm run catalog:update    # refresh models and limits from models.dev
+npm run catalog:audit     # check every curated model still exists on its provider
+```
+
+The audit exits non-zero when a curated entry is not served by its provider.
+Curated lists are only a fallback, but a wrong entry is worse than a missing one:
+it is offered in the picker and fails only when selected.
 
 ### Single-provider mode
 
