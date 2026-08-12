@@ -111,6 +111,14 @@ curl http://127.0.0.1:11434/v1/models    # Ollama
 curl http://127.0.0.1:1234/v1/models     # LM Studio
 ```
 
+## A request hangs
+
+The router gives up on a provider that accepts the connection and then sends
+nothing for ten minutes, answering `502` with `no data for 600s`. Reasoning models
+can legitimately think for minutes, which is why the limit is generous. Adjust it
+with `COPILOT_BYOK_PROVIDER_TIMEOUT_MS` if your provider is slower, or lower it to
+fail faster.
+
 ## Inspecting what the router does
 
 ```sh

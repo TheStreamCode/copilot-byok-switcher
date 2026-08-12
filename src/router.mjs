@@ -18,6 +18,10 @@ import { isByokModelId } from './catalog.mjs';
 
 const MAX_MODELS_BYTES = 8 * 1024 * 1024;
 
+// A provider that accepts the connection and then goes silent would otherwise hang
+// the turn indefinitely. Generous, because reasoning models legitimately take minutes.
+const PROVIDER_IDLE_TIMEOUT_MS = Number(process.env.COPILOT_BYOK_PROVIDER_TIMEOUT_MS) || 600_000;
+
 /**
  * @param {object}   options
  * @param {object|function} options.catalog  Result of buildCatalog(), or a function
@@ -160,6 +164,10 @@ function forwardToProvider({ req, res, payload, route, onEvent }) {
       providerRes.pipe(res); // SSE streaming passes through untouched
     }
   );
+
+  providerReq.setTimeout(PROVIDER_IDLE_TIMEOUT_MS, () => {
+    providerReq.destroy(new Error(`no data for ${Math.round(PROVIDER_IDLE_TIMEOUT_MS / 1000)}s`));
+  });
 
   providerReq.on('error', (error) => {
     onEvent({ type: 'error', provider: provider.id, message: error.message });

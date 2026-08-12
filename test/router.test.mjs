@@ -103,3 +103,42 @@ test('an unknown BYOK id fails clearly instead of reaching GitHub', async () => 
     await new Promise((resolve) => router.close(resolve));
   }
 });
+
+test('a provider that accepts the connection and stalls does not hang forever', async () => {
+  process.env.COPILOT_BYOK_PROVIDER_TIMEOUT_MS = '300';
+  const { createRouter: freshRouter } = await import(`../src/router.mjs?timeout-case`);
+
+  const stalling = http.createServer(() => { /* never responds */ });
+  await new Promise((resolve) => stalling.listen(0, '127.0.0.1', resolve));
+
+  const catalog = buildCatalog([{
+    id: 'slow',
+    name: 'Slow',
+    baseUrl: `http://127.0.0.1:${stalling.address().port}/v1`,
+    apiKey: 'k',
+    models: [{ model: 'slow-model' }],
+  }]);
+
+  const router = freshRouter({
+    catalog,
+    upstream: createUpstreamResolver({ explicit: 'https://upstream.invalid' }),
+  });
+  await new Promise((resolve) => router.listen(0, '127.0.0.1', resolve));
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${router.address().port}/chat/completions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model: 'byok-slow-slow-model', messages: [] }),
+    });
+
+    assert.equal(response.status, 502);
+    assert.match((await response.json()).error.message, /no data for/);
+  } finally {
+    delete process.env.COPILOT_BYOK_PROVIDER_TIMEOUT_MS;
+    router.closeAllConnections();
+    await new Promise((resolve) => router.close(resolve));
+    stalling.closeAllConnections();
+    await new Promise((resolve) => stalling.close(resolve));
+  }
+});
