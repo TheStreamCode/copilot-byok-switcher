@@ -1,6 +1,6 @@
 # Provider verification
 
-Last verified: 2026-08-12
+Last verified: 2026-08-12 (model-list endpoints re-verified the same day)
 
 This document separates three different levels of evidence, because they are not
 interchangeable:
@@ -63,6 +63,46 @@ before the credential, and the probe deliberately sends a non-existent model:
 |---|---|---|
 | Fireworks AI | `https://api.fireworks.ai/inference/v1` | 404 on an unknown model |
 | Nvidia NIM | `https://integrate.api.nvidia.com/v1` | 404 on an unknown model |
+
+## Model-list endpoints
+
+Discovery reads each provider's `GET /models`, so that route was probed for every
+catalog entry with an invalid key. **None returned 404** — every provider exposes
+it. Four serve it without authentication, which is how the model counts below
+were observed:
+
+| Provider | Result |
+|---|---|
+| ModelScope | 200 — 43 models |
+| OpenCode Go | 200 — 25 models |
+| OpenCode Zen | 200 — 61 models |
+| OpenRouter | 200 — 408 models, 340 declaring tool support |
+| Gemini, xAI | 400 (route exists, request rejected) |
+| Qianfan | 403 |
+| All others | 401 |
+| Ollama, LM Studio | connection refused — local servers, not running here |
+
+Some providers publish the metadata discovery needs alongside the list, which is
+what lets the picker show real limits rather than guesses:
+
+| Provider | Fields observed |
+|---|---|
+| Chutes | `context_length`, `max_output_length`, `supported_features: ["json_mode","tools","structured_outputs","reasoning"]` |
+| OpenRouter | `context_length`, `top_provider.max_completion_tokens`, `supported_parameters` including `tools` |
+
+Providers that publish only ids still work: their limits come from the shipped
+catalog, and a model is excluded only when a provider explicitly says it cannot
+call tools.
+
+### Discovery against real keys
+
+| Provider | Result |
+|---|---|
+| Chutes | 12 models, with context and output read from the API |
+| Alibaba Token Plan | 7 models |
+| OpenAI | 401 — the key on this machine is not valid for `api.openai.com`; the curated list was used, as designed |
+
+Measured wall-clock for the three configured providers, queried in parallel: 1.2s.
 
 ## End-to-end
 

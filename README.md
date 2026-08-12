@@ -33,6 +33,8 @@ Unavailable models
 
 Pick one and the session talks straight to that provider. GitHub authentication stays intact, every other Copilot feature keeps working, and those turns cost **zero AI credits** — you pay your provider directly.
 
+The list is not hard-coded: each provider is asked what it serves at startup, so a model released this morning is in the picker this morning.
+
 ```
 ● Model changed to: byok-anthropic-claude-sonnet-4-6 for this session
 ```

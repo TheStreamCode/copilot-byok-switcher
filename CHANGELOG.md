@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-08-12
+
 ### Added
 
 - **The model list now comes from the providers themselves.** At startup each
@@ -25,8 +27,6 @@ empty response all fall back to the shipped catalog, and the router log records
 which provider fell back and why. Models that cannot call tools are still
 excluded, and each provider contributes at most twelve entries so a 400-model
 catalog cannot swamp the list.
-
-## [1.0.1] - 2026-08-12
 
 ### Fixed
 
