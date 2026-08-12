@@ -226,11 +226,19 @@ function validateProviderOptions(provider, name, type) {
 }
 
 function rejectSecretModelHeaders(provider, name) {
-  const headers = provider.modelsHeaders || {};
-  for (const [headerName, value] of Object.entries(headers)) {
-    const combined = `${headerName}: ${value}`;
-    if (/authorization|cookie|session|credential|password|api[-_]?key|token|secret|bearer|x-auth/i.test(combined)) {
-      throw new Error(`Secret model headers are not allowed for provider ${name}. Use apiKeyEnv or bearerTokenEnv instead.`);
+  // `headers` reaches the real provider request, so it needs the same scrutiny as
+  // `modelsHeaders`, which only ever reaches the catalog endpoint.
+  const fields = [
+    { key: 'modelsHeaders', label: 'model headers' },
+    { key: 'headers', label: 'request headers' },
+  ];
+
+  for (const { key, label } of fields) {
+    for (const [headerName, value] of Object.entries(provider[key] || {})) {
+      const combined = `${headerName}: ${value}`;
+      if (/authorization|cookie|session|credential|password|api[-_]?key|token|secret|bearer|x-auth/i.test(combined)) {
+        throw new Error(`Secret ${label} are not allowed for provider ${name}. Use apiKeyEnv or bearerTokenEnv instead.`);
+      }
     }
   }
 }
@@ -264,7 +272,9 @@ function normalizeEnvNames(value, providerName, field) {
     }
   }
 
-  return Array.isArray(value) ? [...new Set(normalized)] : normalized[0];
+  // Always an array, even when the config gave a single string: every consumer
+  // iterates over these, and returning a bare string crashed them at runtime.
+  return [...new Set(normalized)];
 }
 
 function normalizeStringList(value, providerName, field) {

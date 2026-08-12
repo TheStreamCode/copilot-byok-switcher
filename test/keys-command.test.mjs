@@ -124,3 +124,24 @@ test('a stored key activates its provider in the router catalog', async () => {
   assert.ok(report.providers.includes('deepseek'));
   assert.ok(report.models.some((id) => id.startsWith('byok-deepseek-')));
 });
+
+test('keys honours --config so a custom provider can hold a key', async () => {
+  const { io, stdout } = await scratchIo();
+  const dir = await mkdtemp(join(tmpdir(), 'copilot-byok-custom-'));
+  const configPath = join(dir, 'providers.json');
+  const { writeFile } = await import('node:fs/promises');
+  await writeFile(configPath, JSON.stringify({
+    providers: [{
+      id: 'acme',
+      name: 'Acme',
+      baseUrl: 'https://api.acme.test/v1',
+      apiKeyEnv: 'ACME_KEY',
+      models: [{ model: 'm' }],
+    }],
+  }));
+
+  const exitCode = await main(['keys', 'list', '--config', configPath], io);
+
+  assert.equal(exitCode, 0);
+  assert.match(stdout.text(), /acme\s+not set -> ACME_KEY/);
+});

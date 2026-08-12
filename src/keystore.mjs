@@ -7,7 +7,7 @@
 //
 // Lookup order is always: environment variable first, store second.
 
-import { chmod, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { homedir, platform } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -68,7 +68,20 @@ export async function removeKey(providerId, env = process.env) {
 async function writeKeys(keys, env) {
   const path = keystorePath(env);
   await mkdir(dirname(path), { recursive: true });
-  await writeFile(path, `${JSON.stringify(keys, null, 2)}\n`, { encoding: 'utf8', mode: 0o600 });
+
+  // Write beside the target and rename: an interrupted write would otherwise
+  // truncate the store and lose every key in it. rename is atomic within a
+  // filesystem, so readers see either the old file or the complete new one.
+  const temporary = `${path}.${process.pid}.tmp`;
+  try {
+    await writeFile(temporary, `${JSON.stringify(keys, null, 2)}\n`, { encoding: 'utf8', mode: 0o600 });
+    await restrictPermissions(temporary);
+    await rename(temporary, path);
+  } catch (error) {
+    await rm(temporary, { force: true });
+    throw error;
+  }
+
   await restrictPermissions(path);
 }
 

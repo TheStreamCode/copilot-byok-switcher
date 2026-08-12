@@ -38,6 +38,38 @@ session as the GitHub ones, instead of replacing them.
 - Tests for the catalog, the router (including provider forwarding and model-name
   translation), the upstream resolver, the key store and the launcher.
 
+### Fixed
+
+- A provider or GitHub connection that broke mid-stream left the session waiting
+  forever: `pipe()` does not end the destination on a source error, and an
+  `IncomingMessage` with no error listener discards the error. Both are handled,
+  and the response is closed.
+- Cancelling a generation now aborts the provider request instead of letting it
+  stream to completion — paid providers were still billing for abandoned answers.
+- A single-string `apiKeyEnv` or `bearerTokenEnv`, which the schema allows,
+  crashed `--list-providers`, `keys list`, and the router itself after startup.
+  Environment names are always normalized to an array now.
+- Advertised prompt and output limits could exceed the model's own context window
+  (Grok 4.5 claimed 500k prompt plus 500k output of a 500k window), which made
+  providers reject requests once Copilot filled the prompt to the stated limit.
+- Custom `headers` were spread after the computed ones, so a gateway config could
+  override `host` and `content-length` and corrupt the request. They are also
+  checked for inline secrets now, like `modelsHeaders` already were.
+- A network blip during the first upstream probe pinned Business and Enterprise
+  accounts to the individual API host for the rest of the session.
+- `--upstream` accepted anything, then failed every request with `Invalid URL`.
+- Single-provider flags (`--provider`, `--list-models`, `--offline`, `--wire-api`,
+  `--no-model-prompt`) were parsed and silently ignored in router mode; they now
+  say they need `--legacy`.
+- `keys` and `extension` ignored `--config`, so a provider defined only in a
+  custom catalog could not be given a key.
+- The key store was written in place, so an interrupted write truncated it and
+  concurrent writers lost updates. It is written to a temp file and renamed.
+- Model names that slugify to the same id silently dropped one model from the
+  picker; the collision is reported.
+- Restored `process.exitCode` in place of `process.exit()`, which could truncate
+  piped stdout on POSIX.
+
 ### Changed
 
 - Running `copilot-byok` with no arguments now starts the router; providers

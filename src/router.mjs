@@ -18,6 +18,10 @@ import { isByokModelId } from './catalog.mjs';
 
 const MAX_MODELS_BYTES = 8 * 1024 * 1024;
 
+// Prompts with attachments are large, but not unbounded: this keeps a runaway
+// client from growing the router's memory without limit.
+const MAX_BODY_BYTES = 64 * 1024 * 1024;
+
 // A provider that accepts the connection and then goes silent would otherwise hang
 // the turn indefinitely. Generous, because reasoning models legitimately take minutes.
 const PROVIDER_IDLE_TIMEOUT_MS = Number(process.env.COPILOT_BYOK_PROVIDER_TIMEOUT_MS) || 600_000;
@@ -141,11 +145,13 @@ function forwardToProvider({ req, res, payload, route, onEvent }) {
   const body = Buffer.from(JSON.stringify(outbound), 'utf8');
 
   const headers = {
+    accept: req.headers.accept || 'application/json',
+    // Custom gateway headers come first so the computed ones below always win:
+    // a stale content-length corrupts the request and a wrong host breaks TLS SNI.
+    ...(provider.headers || {}),
     'content-type': 'application/json',
     'content-length': String(body.byteLength),
-    accept: req.headers.accept || 'application/json',
     host: target.host,
-    ...(provider.headers || {}),
   };
   if (provider.apiKey) headers.authorization = `Bearer ${provider.apiKey}`;
 
@@ -162,6 +168,12 @@ function forwardToProvider({ req, res, payload, route, onEvent }) {
     (providerRes) => {
       res.writeHead(providerRes.statusCode, providerRes.headers);
       providerRes.pipe(res); // SSE streaming passes through untouched
+      // pipe() does not end the destination when the source fails, and an
+      // IncomingMessage with no error listener swallows the error: without this
+      // a provider that dies mid-stream would leave the session waiting forever.
+      endOnBrokenSource(providerRes, res, (message) => {
+        onEvent({ type: 'error', provider: provider.id, message });
+      });
     }
   );
 
@@ -176,6 +188,12 @@ function forwardToProvider({ req, res, payload, route, onEvent }) {
     });
   });
 
+  // A cancelled generation must stop the provider request too: otherwise it keeps
+  // streaming, and paid providers keep billing, for an answer nobody will read.
+  res.on('close', () => {
+    if (!res.writableEnded) providerReq.destroy();
+  });
+
   providerReq.end(body);
 }
 
@@ -188,6 +206,9 @@ function passthrough({ req, res, body, upstream, onEvent }) {
     (upstreamRes) => {
       res.writeHead(upstreamRes.statusCode, upstreamRes.headers);
       upstreamRes.pipe(res);
+      endOnBrokenSource(upstreamRes, res, (message) => {
+        onEvent({ type: 'error', path: req.url, message });
+      });
     }
   );
 
@@ -196,15 +217,43 @@ function passthrough({ req, res, body, upstream, onEvent }) {
     res.writeHead(502).end();
   });
 
+  res.on('close', () => {
+    if (!res.writableEnded) upstreamReq.destroy();
+  });
+
   upstreamReq.end(body);
 }
 
 // ---------------------------------------------------------------------- utilities
 
-function collectBody(req) {
+/**
+ * Closes the response when the source stream breaks. Node's pipe() leaves the
+ * destination open on a source error, and an IncomingMessage without an error
+ * listener discards the error entirely — together that means a silent hang.
+ */
+function endOnBrokenSource(source, res, report) {
+  const finish = (reason) => {
+    report(reason);
+    if (!res.writableEnded) res.end();
+  };
+
+  source.on('error', (error) => finish(`stream interrupted: ${error.message}`));
+  source.on('aborted', () => finish('stream aborted by the remote end'));
+}
+
+function collectBody(req, maxBytes = MAX_BODY_BYTES) {
   return new Promise((resolve, reject) => {
     const chunks = [];
-    req.on('data', (chunk) => chunks.push(chunk));
+    let total = 0;
+    req.on('data', (chunk) => {
+      total += chunk.length;
+      if (total > maxBytes) {
+        req.destroy();
+        reject(new Error(`request body exceeded the ${maxBytes}-byte limit`));
+        return;
+      }
+      chunks.push(chunk);
+    });
     req.on('end', () => resolve(Buffer.concat(chunks)));
     req.on('error', reject);
   });

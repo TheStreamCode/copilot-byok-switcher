@@ -9,14 +9,26 @@ const ID_PREFIX = 'byok';
  * @param {object[]} providers   Already-resolved providers (with apiKey where needed).
  * @returns {{entries: object[], routes: Map<string, {provider: object, model: object}>}}
  */
-export function buildCatalog(providers) {
+export function buildCatalog(providers, onEvent = () => {}) {
   const entries = [];
   const routes = new Map();
 
   for (const provider of providers) {
     for (const model of provider.models || []) {
       const id = buildModelId(provider.id, model.model);
-      if (routes.has(id)) continue;
+
+      // Distinct names can slugify to the same id (gpt-4.1 and gpt-4-1). Dropping
+      // the second silently would make a configured model vanish from the picker.
+      if (routes.has(id)) {
+        const taken = routes.get(id);
+        if (taken.model.model !== model.model) {
+          onEvent({
+            type: 'error',
+            message: `${provider.id}: "${model.model}" and "${taken.model.model}" collide as ${id}; keeping the first`,
+          });
+        }
+        continue;
+      }
 
       routes.set(id, { provider, model });
       entries.push(buildEntry({ id, provider, model }));
@@ -42,6 +54,7 @@ export function isByokModelId(value) {
 function buildEntry({ id, provider, model }) {
   const context = model.contextWindow || 128_000;
   const output = model.maxOutputTokens || 32_000;
+  const { promptBudget, outputBudget } = splitBudget(context, output);
 
   return {
     id,
@@ -63,9 +76,9 @@ function buildEntry({ id, provider, model }) {
       tokenizer: 'o200k_base',
       limits: {
         max_context_window_tokens: context,
-        max_prompt_tokens: Math.max(context - output, Math.floor(context * 0.75)),
-        max_output_tokens: output,
-        max_non_streaming_output_tokens: Math.min(output, 16_000),
+        max_prompt_tokens: promptBudget,
+        max_output_tokens: outputBudget,
+        max_non_streaming_output_tokens: Math.min(outputBudget, 16_000),
       },
       supports: {
         streaming: true,
@@ -76,6 +89,18 @@ function buildEntry({ id, provider, model }) {
       },
     },
   };
+}
+
+/**
+ * Prompt and output share one context window, so their advertised limits must add
+ * up to no more than it. Some models publish an output limit as large as their
+ * whole context (Grok 4.5: 500k of 500k), which would leave nothing for the
+ * prompt; in that case output is halved. Otherwise output is kept as published
+ * and the prompt takes what is left.
+ */
+function splitBudget(context, output) {
+  const outputBudget = output >= context ? Math.floor(context / 2) : output;
+  return { outputBudget, promptBudget: Math.max(context - outputBudget, 1) };
 }
 
 function pickCategory(context) {

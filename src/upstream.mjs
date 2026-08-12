@@ -42,12 +42,15 @@ export function createUpstreamResolver({
       if (pending) return pending;
 
       pending = (async () => {
+        let anyAnswered = false;
+
         for (const candidate of candidates) {
           try {
             const response = await fetchImpl(`${candidate}/models`, {
               headers: { authorization, 'user-agent': 'copilot-byok' },
               signal: AbortSignal.timeout(15_000),
             });
+            anyAnswered = true;
             if (response.ok) {
               resolved = candidate;
               return candidate;
@@ -56,8 +59,12 @@ export function createUpstreamResolver({
             // candidate unreachable: try the next one
           }
         }
-        resolved = candidates[0];
-        return resolved;
+
+        // Only remember the fallback when the network actually answered. A blip
+        // during the first probe would otherwise pin a Business or Enterprise
+        // account to the individual host for the whole session.
+        if (anyAnswered) resolved = candidates[0];
+        return candidates[0];
       })();
 
       try {

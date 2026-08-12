@@ -72,3 +72,52 @@ test('only providers with models and credentials are activated', () => {
     ['ready', 'local', 'bearer']
   );
 });
+
+test('prompt and output budgets fit inside the context window', () => {
+  const cases = [
+    { context: 500_000, output: 500_000 },   // Grok 4.5: output as large as context
+    { context: 1_000_000, output: 384_000 }, // DeepSeek V4 Pro
+    { context: 200_000, output: 131_072 },   // GLM-5.1
+    { context: 128_000, output: 8_000 },     // ordinary case
+  ];
+
+  for (const { context, output } of cases) {
+    const { entries } = buildCatalog([{
+      id: 'p', name: 'P', baseUrl: 'https://x.test/v1', apiKey: 'k',
+      models: [{ model: 'm', contextWindow: context, maxOutputTokens: output }],
+    }]);
+
+    const limits = entries[0].capabilities.limits;
+    assert.ok(
+      limits.max_prompt_tokens + limits.max_output_tokens <= limits.max_context_window_tokens,
+      `prompt ${limits.max_prompt_tokens} + output ${limits.max_output_tokens} exceeds ${context}`
+    );
+    assert.ok(limits.max_prompt_tokens > 0);
+  }
+});
+
+test('the shipped catalog never advertises more than a model can hold', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const catalog = JSON.parse(await readFile(new URL('../src/providers.default.json', import.meta.url), 'utf8'));
+
+  const providers = catalog.providers
+    .filter((provider) => provider.models.length)
+    .map((provider) => ({ ...provider, apiKey: 'k' }));
+
+  for (const entry of buildCatalog(providers).entries) {
+    const { max_prompt_tokens: prompt, max_output_tokens: output, max_context_window_tokens: context } =
+      entry.capabilities.limits;
+    assert.ok(prompt + output <= context, `${entry.id}: ${prompt} + ${output} > ${context}`);
+  }
+});
+
+test('models whose names collide are reported rather than dropped in silence', () => {
+  const events = [];
+  const { entries } = buildCatalog([{
+    id: 'p', name: 'P', baseUrl: 'https://x.test/v1', apiKey: 'k',
+    models: [{ model: 'gpt-4.1' }, { model: 'gpt-4-1' }],
+  }], (event) => events.push(event));
+
+  assert.equal(entries.length, 1);
+  assert.match(events[0].message, /collide as byok-p-gpt-4-1/);
+});

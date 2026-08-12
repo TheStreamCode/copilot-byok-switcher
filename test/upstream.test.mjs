@@ -56,3 +56,32 @@ test('when every candidate fails it falls back to the first', async () => {
 
   assert.equal(await resolver.resolve('Bearer t'), UPSTREAM_CANDIDATES[0]);
 });
+
+test('a probe that fails because the network is down is not cached', async () => {
+  let attempt = 0;
+  const resolver = createUpstreamResolver({
+    fetchImpl: async (url) => {
+      attempt += 1;
+      if (attempt <= UPSTREAM_CANDIDATES.length) throw new Error('network down');
+      return { ok: url.startsWith(UPSTREAM_CANDIDATES[1]) };
+    },
+  });
+
+  // First round: everything is unreachable, so the fallback must not stick.
+  assert.equal(await resolver.resolve('Bearer t'), UPSTREAM_CANDIDATES[0]);
+
+  // Once the network is back, detection runs again and finds the real tier.
+  assert.equal(await resolver.resolve('Bearer t'), UPSTREAM_CANDIDATES[1]);
+});
+
+test('a definitive rejection from every candidate is cached', async () => {
+  let calls = 0;
+  const resolver = createUpstreamResolver({
+    fetchImpl: async () => { calls += 1; return { ok: false, status: 403 }; },
+  });
+
+  await resolver.resolve('Bearer t');
+  await resolver.resolve('Bearer t');
+
+  assert.equal(calls, UPSTREAM_CANDIDATES.length, 'the servers answered, so there is nothing to retry');
+});

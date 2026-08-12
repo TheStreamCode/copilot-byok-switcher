@@ -321,3 +321,59 @@ test('adds the config path to malformed JSON errors', async () => {
 
   await assert.rejects(() => loadConfigFromPath(configPath, {}), new RegExp(configPath.replaceAll('\\', '\\\\')));
 });
+
+test('a single-string apiKeyEnv is normalized to an array', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'copilot-byok-scalar-'));
+  const configPath = join(dir, 'providers.json');
+  await writeFile(configPath, JSON.stringify({
+    providers: [{
+      id: 'acme',
+      name: 'Acme',
+      baseUrl: 'https://api.acme.test/v1',
+      apiKeyEnv: 'ACME_KEY',
+      bearerTokenEnv: 'ACME_TOKEN',
+      models: [{ model: 'm' }],
+    }],
+  }));
+
+  const config = await loadConfigFromPath(configPath, { ACME_KEY: 'secret' });
+  const [provider] = config.providers;
+
+  // Every consumer iterates over these; a bare string used to crash them.
+  assert.deepEqual(provider.apiKeyEnv, ['ACME_KEY']);
+  assert.deepEqual(provider.bearerTokenEnv, ['ACME_TOKEN']);
+  assert.equal(provider.apiKey, 'secret');
+});
+
+test('inline secrets are rejected in request headers, not just catalog headers', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'copilot-byok-headers-'));
+  const configPath = join(dir, 'providers.json');
+  await writeFile(configPath, JSON.stringify({
+    providers: [{
+      id: 'gw',
+      name: 'Gateway',
+      baseUrl: 'https://gw.test/v1',
+      headers: { Authorization: 'Bearer sk-inline-secret' },
+      models: [{ model: 'm' }],
+    }],
+  }));
+
+  await assert.rejects(() => loadConfigFromPath(configPath, {}), /Secret request headers are not allowed/);
+});
+
+test('non-secret gateway headers are still allowed', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'copilot-byok-headers-ok-'));
+  const configPath = join(dir, 'providers.json');
+  await writeFile(configPath, JSON.stringify({
+    providers: [{
+      id: 'gw',
+      name: 'Gateway',
+      baseUrl: 'https://gw.test/v1',
+      headers: { 'X-Tenant-Id': 'platform-team' },
+      models: [{ model: 'm' }],
+    }],
+  }));
+
+  const config = await loadConfigFromPath(configPath, {});
+  assert.equal(config.providers[0].headers['X-Tenant-Id'], 'platform-team');
+});

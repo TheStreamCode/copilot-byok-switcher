@@ -20,8 +20,10 @@ const MAX_MODEL_CATALOG_BYTES = 5 * 1024 * 1024;
 export async function main(argv = process.argv.slice(2), io = defaultIo()) {
   // `keys` is a subcommand, not a flag: it manages credentials and never starts Copilot.
   if (argv[0] === 'keys') {
-    const config = await loadConfig({ env: io.env, secrets: await loadKeys(io.env) });
-    return runKeysCommand({ argv: argv.slice(1), config, io });
+    const rest = argv.slice(1);
+    const configPath = extractConfigPath(rest);
+    const config = await loadConfig({ configPath, env: io.env, secrets: await loadKeys(io.env) });
+    return runKeysCommand({ argv: rest, config, io });
   }
 
   // `extension` installs the in-session /byok command.
@@ -179,6 +181,30 @@ function defaultIo() {
     stderr: process.stderr,
     env: process.env,
   };
+}
+
+/**
+ * Subcommands are dispatched before the argument parser runs, so they pick up
+ * --config here. Without this, anyone with a custom catalog could not store a key
+ * for a provider defined only in it.
+ */
+function extractConfigPath(argv) {
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (arg === '--config' || arg === '-c') {
+      const value = argv[index + 1];
+      if (!value || value.startsWith('-')) throw new Error(`${arg} requires a file path`);
+      argv.splice(index, 2);
+      return value;
+    }
+    if (arg.startsWith('--config=')) {
+      const value = arg.slice('--config='.length);
+      if (!value) throw new Error('--config requires a file path');
+      argv.splice(index, 1);
+      return value;
+    }
+  }
+  return null;
 }
 
 async function resolveProvider({ config, requested, io }) {

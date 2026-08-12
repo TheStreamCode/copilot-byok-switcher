@@ -146,6 +146,36 @@ export function parseArgs(argv) {
     throw new Error('--offline and --wire-api require a BYOK provider');
   }
 
+  // These only mean something to the single-provider flow. Accepting them in
+  // router mode and ignoring them silently produced surprising results, such as
+  // --list-models launching a full session instead of printing a list.
+  if (!result.legacy && result.providerName !== 'native') {
+    const legacyOnly = [
+      ['--provider', result.providerName],
+      ['--list-models', result.listModels],
+      ['--offline', result.offline],
+      ['--wire-api', result.wireApi],
+      ['--no-model-prompt', result.noModelPrompt],
+    ].filter(([, used]) => used).map(([flag]) => flag);
+
+    if (legacyOnly.length > 0) {
+      throw new Error(`${legacyOnly.join(', ')} require --legacy (single-provider mode)`);
+    }
+  }
+
+  if (result.upstream) {
+    let url;
+    try {
+      url = new URL(result.upstream);
+    } catch {
+      throw new Error(`--upstream must be a URL such as https://api.business.githubcopilot.com, got "${result.upstream}"`);
+    }
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+      throw new Error(`--upstream must be an http(s) URL, got "${result.upstream}"`);
+    }
+    result.upstream = url.origin;
+  }
+
   return result;
 }
 

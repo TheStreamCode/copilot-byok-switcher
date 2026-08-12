@@ -64,3 +64,19 @@ test('a malformed store reports the path instead of failing obscurely', async ()
 
   await assert.rejects(() => loadKeys(env), /Malformed key store/);
 });
+
+test('a crash during a write cannot destroy the existing store', async () => {
+  const env = await scratchEnv();
+  await saveKey('openai', 'first', env);
+  await saveKey('deepseek', 'second', env);
+
+  const { readdir } = await import('node:fs/promises');
+  const { dirname } = await import('node:path');
+  await saveKey('anthropic', 'third', env);
+
+  // The write goes through a temp file and a rename, so no partial file is left
+  // behind and the store always contains every key.
+  const leftovers = (await readdir(dirname(keystorePath(env)))).filter((name) => name.includes('.tmp'));
+  assert.deepEqual(leftovers, []);
+  assert.deepEqual(await loadKeys(env), { openai: 'first', deepseek: 'second', anthropic: 'third' });
+});

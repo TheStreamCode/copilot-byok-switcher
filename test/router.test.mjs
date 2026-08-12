@@ -142,3 +142,92 @@ test('a provider that accepts the connection and stalls does not hang forever', 
     await new Promise((resolve) => stalling.close(resolve));
   }
 });
+
+test('a provider that dies mid-stream ends the response instead of hanging', async () => {
+  const dying = http.createServer((req, res) => {
+    res.writeHead(200, { 'content-type': 'text/event-stream' });
+    res.write('data: {"choices":[{"delta":{"content":"par'); // truncated on purpose
+    setTimeout(() => res.socket.destroy(), 50);
+  });
+  await new Promise((resolve) => dying.listen(0, '127.0.0.1', resolve));
+
+  const events = [];
+  const catalog = buildCatalog([{
+    id: 'flaky',
+    name: 'Flaky',
+    baseUrl: `http://127.0.0.1:${dying.address().port}/v1`,
+    apiKey: 'k',
+    models: [{ model: 'flaky-model' }],
+  }]);
+
+  const router = createRouter({
+    catalog,
+    upstream: createUpstreamResolver({ explicit: 'https://upstream.invalid' }),
+    onEvent: (event) => events.push(event),
+  });
+  await new Promise((resolve) => router.listen(0, '127.0.0.1', resolve));
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${router.address().port}/chat/completions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model: 'byok-flaky-flaky-model', messages: [] }),
+    });
+
+    // Must settle rather than hang: the body ends even though the provider vanished.
+    const text = await response.text();
+    assert.match(text, /par$/);
+    assert.ok(events.some((event) => /interrupted|aborted/.test(event.message || '')));
+  } finally {
+    router.closeAllConnections();
+    await new Promise((resolve) => router.close(resolve));
+    dying.closeAllConnections();
+    await new Promise((resolve) => dying.close(resolve));
+  }
+});
+
+test('custom provider headers cannot override host or content-length', async () => {
+  let seen;
+  const provider = http.createServer((req, res) => {
+    let body = '';
+    req.on('data', (chunk) => { body += chunk; });
+    req.on('end', () => {
+      seen = { headers: req.headers, length: body.length };
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end('{}');
+    });
+  });
+  await new Promise((resolve) => provider.listen(0, '127.0.0.1', resolve));
+  const port = provider.address().port;
+
+  const catalog = buildCatalog([{
+    id: 'gw',
+    name: 'Gateway',
+    baseUrl: `http://127.0.0.1:${port}/v1`,
+    apiKey: 'k',
+    headers: { 'X-Tenant-Id': 'team', host: 'evil.example.com', 'content-length': '99999' },
+    models: [{ model: 'm' }],
+  }]);
+
+  const router = createRouter({
+    catalog,
+    upstream: createUpstreamResolver({ explicit: 'https://upstream.invalid' }),
+  });
+  await new Promise((resolve) => router.listen(0, '127.0.0.1', resolve));
+
+  try {
+    await fetch(`http://127.0.0.1:${router.address().port}/chat/completions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model: 'byok-gw-m', messages: [] }),
+    });
+
+    assert.equal(seen.headers['x-tenant-id'], 'team', 'genuine custom headers still pass');
+    assert.equal(seen.headers.host, `127.0.0.1:${port}`, 'host must stay correct');
+    assert.equal(Number(seen.headers['content-length']), seen.length, 'content-length must match the body');
+  } finally {
+    router.closeAllConnections();
+    await new Promise((resolve) => router.close(resolve));
+    await new Promise((resolve) => provider.close(resolve));
+  }
+});
