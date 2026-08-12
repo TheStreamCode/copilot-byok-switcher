@@ -117,21 +117,12 @@ Each provider also accepts a `COPILOT_BYOK_<PROVIDER>_API_KEY` variant, useful w
 
 Two sources, in this order:
 
-1. **Environment variables** — the recommended one. Nothing is written to disk, and a variable exported for a single shell overrides everything else.
-2. **The local key store** — for when a dozen `setx` calls are not appealing:
+1. **Environment variables** — the default and the recommendation. Nothing is written to disk, and a variable exported for one shell overrides everything else.
+2. **The local key store** — for when a dozen `setx` calls are not appealing. Fill it with `copilot-byok keys set` or the [`/byok` command](#the-byok-command).
 
-```sh
-copilot-byok keys set openai      # prompts, never echoes, never takes the key from argv
-copilot-byok keys list            # where each provider's key is coming from
-copilot-byok keys remove openai
-copilot-byok keys path
-```
+The store lives at `~/.config/copilot-byok/keys.json` (`%APPDATA%\copilot-byok\keys.json` on Windows), written with `0600` and an owner-only ACL on Windows. The trade-off is worth stating: **keys stored there are plain text on disk**, protected by file permissions alone. If that does not fit your threat model, stay with environment variables — the store is opt-in and never created unless you use it.
 
-Or from inside a session, with the `/byok` command (see below).
-
-The store lives at `~/.config/copilot-byok/keys.json` (`%APPDATA%\copilot-byok\keys.json` on Windows), written with `0600` and an owner-only ACL on Windows. Be aware of the trade-off: **keys stored there sit on disk in plain text**, protected by file permissions alone. If that is not acceptable for your threat model, stay with environment variables — the store is opt-in and never created unless you use it.
-
-Keys never reach the Copilot process: the router uses them in its own process and strips them from the child environment.
+Either way the keys stay out of the Copilot process: the router uses them in its own, and strips them from the environment it hands to the agent.
 
 Some entries ship without a preset model list, either because their model names are account-specific (Volcengine endpoint ids) or because the catalog is too large to curate (OpenRouter). Add the ones you want in your own config — see below.
 
@@ -215,6 +206,11 @@ copilot-byok -- <copilot args>    # pass anything through to Copilot
 copilot-byok keys list            # where each provider's key comes from
 copilot-byok keys set <provider>  # store a key (prompted, never echoed)
 copilot-byok keys remove <id>     # delete a stored key
+copilot-byok keys path            # print the key store location
+
+copilot-byok extension install    # add the /byok command to Copilot
+copilot-byok extension status
+copilot-byok extension uninstall
 ```
 
 ### Single-provider mode
@@ -227,15 +223,9 @@ copilot-byok --legacy --provider ollama --model qwen3-coder --offline
 
 ## Security
 
-- Keys live in environment variables; the config only names them. The optional key store is opt-in, written `0600` with an owner-only ACL on Windows, and always loses to an environment variable.
-- Stored keys are never accepted from command-line arguments or pipes, so they do not end up in shell history or process listings.
-- The router binds to `127.0.0.1` on an ephemeral port and exits with Copilot.
-- Your GitHub token passes through the router (it must, to reach GitHub) but is never logged or written to disk.
-- Provider keys are attached only to that provider's requests; they never travel to GitHub.
-- Copilot's child process is started with a sanitized environment, so stale `COPILOT_PROVIDER_*` values and other providers' keys are stripped.
-- Config files rejecting inline secrets, secret-looking model headers and credential-bearing URL query parameters.
+The short version: no TLS is intercepted, no certificate authority is installed, the router listens on loopback only and exits with the session, provider keys never reach Copilot or GitHub, and your GitHub token passes through the router unlogged because it has to.
 
-Full policy in [SECURITY.md](SECURITY.md).
+[SECURITY.md](SECURITY.md) covers the full model, including what the undocumented `COPILOT_API_URL` dependency means for you.
 
 ## Requirements
 

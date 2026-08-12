@@ -12,7 +12,8 @@ into the GitHub Copilot CLI `/model` picker, alongside the GitHub ones, in a sin
 It does this with a local router: Copilot is pointed at `127.0.0.1` through the `COPILOT_API_URL`
 variable, the router appends the configured models to `GET /models`, forwards `byok-*` requests to
 the matching provider, and passes everything else through to GitHub unchanged. There is no TLS
-interception. It never modifies the user's shell profile and never writes credentials to disk.
+interception. It never modifies the user's shell profile, and it writes credentials to disk only
+through the opt-in key store (`copilot-byok keys set` or `/byok`), never on its own initiative.
 
 `COPILOT_API_URL` is an internal Copilot CLI variable, absent from `copilot help environment`.
 Treat it as the project's main external risk: if a CLI release changes it, the router breaks and
@@ -49,12 +50,16 @@ src/launcher.mjs          Starts the router on an ephemeral port and spawns Copi
 src/upstream.mjs          Resolves the Copilot API tier (individual / business / enterprise)
 src/config.mjs            Provider config loading and validation; loads providers.default.json
 src/providers.default.json  Generated catalog — never edit by hand, run npm run catalog:update
+src/keystore.mjs          Optional on-disk key store (0600 / owner-only ACL)
+src/keys-command.mjs      `copilot-byok keys ...`
+src/extension-install.mjs `copilot-byok extension ...`; rewrites the template's package root
 src/copilot-bin.mjs       Resolves the Copilot executable, skipping the stale VS Code shim
 src/model-ranking.mjs     Pure ranking of provider model catalogs (legacy mode)
 src/process-env.mjs       Strips stale/secret variables from the child environment
 src/provider-env.mjs      Builds the COPILOT_PROVIDER_* variables (legacy mode)
 scripts/update-catalog.mjs  Rebuilds the catalog from models.dev
 scripts/catalog-sources.json  Curated provider/model selection feeding the generator
+extensions/byok/extension.mjs  The /byok slash command, copied into ~/.copilot/extensions/
 test/*.test.mjs           One suite per src module
 schemas/providers.schema.json  Published JSON Schema for providers.json
 examples/providers.example.json  Documented example configuration
@@ -96,9 +101,13 @@ There is no `dev`, `build`, `format`, or `type-check` script. Do not invent one 
 
 This project handles third-party provider API keys. Every change must preserve these guarantees:
 
-- Credentials are read **only** from environment variables named by `apiKeyEnv` / `bearerTokenEnv`.
-  Inline `apiKey`, `bearerToken`, and secret-bearing `modelsHeaders` in provider config files are rejected
-  by `src/config.mjs` — keep those checks.
+- Credentials come from environment variables named by `apiKeyEnv` / `bearerTokenEnv`, or from the
+  opt-in key store in `src/keystore.mjs`. The environment always wins over the store. Inline `apiKey`,
+  `bearerToken`, and secret-bearing `modelsHeaders` in provider config files are rejected by
+  `src/config.mjs` — keep those checks.
+- The key store is written `0600` with an owner-only ACL on Windows, and only ever populated from an
+  interactive prompt: never accept a key from argv, stdin pipes, or an environment variable meant for
+  something else. It must stay opt-in — nothing may create it implicitly.
 - Never print, log, or embed a credential value. `--dry-run` output must keep passing through `redactEnv()`,
   which masks any key matching `/KEY|TOKEN|SECRET|PASSWORD/i`.
 - Error messages must not reveal which environment variable holds a secret (covered by a test).
@@ -140,6 +149,11 @@ session instead of failing cleanly at startup.
 In legacy mode only, `catalogModelId` must be a model that exists in Copilot's built-in catalog (for
 `COPILOT_MODEL`), while the provider's own model name goes on the wire as
 `COPILOT_PROVIDER_WIRE_MODEL`. Do not merge the two.
+
+Anything a user needs at runtime must be listed in `files` in `package.json`.
+`extensions/` and `scripts/` are there for that reason: without them
+`copilot-byok extension install` and `npm run catalog:update` break for anyone
+who installed from npm rather than from a clone.
 
 ## Compatibility and anti-breaking-change rules
 

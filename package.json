@@ -47,6 +47,7 @@
     "bin/",
     "docs/",
     "examples/",
+    "extensions/",
     "schemas/",
     "scripts/",
     "src/"
