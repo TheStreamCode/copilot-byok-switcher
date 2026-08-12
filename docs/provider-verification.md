@@ -1,59 +1,100 @@
 # Provider verification
 
-Last verified: 2026-08-08
+Last verified: 2026-08-12
 
-This document separates three different levels of evidence:
+This document separates three different levels of evidence, because they are not
+interchangeable:
 
-1. **Endpoint**: DNS, TLS, and the documented HTTP route responded. An unauthenticated `400`, `401`, `403`, or `429` proves route reachability only.
-2. **Catalog**: the switcher fetched and ranked the provider model catalog with an available API key.
-3. **End-to-end**: the switcher launched GitHub Copilot CLI, Copilot called the selected provider, and a real model response completed with exit code `0`.
+1. **Endpoint** — DNS, TLS and the documented route answered. An unauthenticated
+   `400`, `401`, `403` or `429` proves the route exists; it says nothing about
+   whether your key works.
+2. **Catalog** — the switcher fetched and ranked the provider's model list with a
+   real API key.
+3. **End-to-end** — Copilot CLI ran through the router against the provider, a
+   real model answered, and the agent completed a tool-using task.
 
-## Current test environment
+## Test environment
 
-- Windows
-- Node.js 22.17.0
-- npm 10.9.2
-- GitHub Copilot CLI was not available on `PATH`, so no authenticated or end-to-end checks were repeated
-- Endpoint checks used unauthenticated `GET` requests with a 10-second timeout and did not print environment variables
+- Windows 11, Node.js 22.17.0, npm 11.17.0
+- GitHub Copilot CLI 1.0.79, personal (free) plan
+- Endpoint probes: `POST /chat/completions` with a deliberately invalid key and a
+  25-second timeout. No credentials were printed.
 
-## Provider matrix
+## Endpoint reachability
 
-| Provider | Endpoint 2026-08-08 | Authenticated catalog | End-to-end inference | Evidence |
-|---|---:|---:|---:|---|
-| OpenAI | Yes (`401`) | Not tested | Not tested | The official Models API route required authentication. |
-| Anthropic | Yes (`401`) | Not tested | Not tested | The official Models API route required `x-api-key` authentication. |
-| Ollama | Not reached | Not applicable | Not tested | No local Ollama service was listening on `localhost:11434`; the preset itself requires no key. |
-| Chutes | Yes (`200`) | Historical | Historical success | On 2026-07-31, the catalog loaded and `moonshotai/Kimi-K3-TEE` returned the expected sentinel response with exit code `0`; this was not repeated. |
-| OpenCode Go | Yes (`200`) | Historical | Historical incomplete | On 2026-07-31, the catalog loaded but the available account returned `429 Monthly usage limit reached` before generation. Both protocol presets use the same current catalog. |
-| Fireworks AI | Yes (`401`) | Not tested | Not tested | The documented catalog route required authentication. |
-| OpenRouter | Yes (`200`) | Not tested | Not tested | The public filtered catalog route responded; provider inference was not tested. |
-| Moonshot AI (Kimi) | Yes (`401`) | Not tested | Not tested | The documented route required authentication. |
-| DeepSeek | Yes (`401`) | Not tested | Not tested | The documented route required authentication. |
-| Groq | Yes (`401`) | Not tested | Not tested | The official Models API route required authentication. |
-| xAI | Yes (`401`) | Not tested | Not tested | The official Models API route required authentication. |
-| Mistral AI | Yes (`401`) | Not tested | Not tested | The official Models API route required authentication. |
-| Z.ai Coding Plan | Yes (`401`) | Not tested | Not tested | The documented Coding Plan route required authentication. |
-| Z.ai API | Yes (`401`) | Not tested | Not tested | The documented pay-as-you-go route required authentication. |
-| MiniMax | Yes (`401`) | Not tested | Not tested | The documented route required authentication. |
-| Alibaba Model Studio Token Plan | Yes (`401`) | Not applicable | Not tested | The dedicated Beijing plan route required its plan key; no catalog endpoint is assumed. |
-| Tencent Cloud Token Plan | Yes (`401`) | Not applicable | Not tested | The mainland China personal-plan route required its `sk-tp-...` key; no catalog endpoint is assumed. |
+All entries below answered on their OpenAI-compatible route.
 
-Gemini is not listed as a switcher preset because it is available through Copilot's native model catalog. Together, Cerebras, Azure, Foundry Local, LM Studio, and vLLM remain available through custom provider configuration rather than fixed presets.
+| Provider | Base URL | Result |
+|---|---|---|
+| OpenAI | `https://api.openai.com/v1` | 401 |
+| Anthropic | `https://api.anthropic.com/v1` | 401 |
+| Google Gemini | `https://generativelanguage.googleapis.com/v1beta/openai` | 400 |
+| xAI | `https://api.x.ai/v1` | 400 |
+| Mistral | `https://api.mistral.ai/v1` | 401 |
+| Groq | `https://api.groq.com/openai/v1` | 401 |
+| Cerebras | `https://api.cerebras.ai/v1` | 401 |
+| Together AI | `https://api.together.xyz/v1` | 401 |
+| DeepInfra | `https://api.deepinfra.com/v1/openai` | 401 |
+| Perplexity | `https://api.perplexity.ai` | 401 |
+| OpenRouter | `https://openrouter.ai/api/v1` | 401 |
+| DeepSeek | `https://api.deepseek.com/v1` | 401 |
+| Alibaba Qwen (intl) | `https://dashscope-intl.aliyuncs.com/compatible-mode/v1` | 401 |
+| Alibaba Qwen (CN) | `https://dashscope.aliyuncs.com/compatible-mode/v1` | 401 |
+| Alibaba Token Plan | `https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1` | 401 |
+| Z.AI | `https://api.z.ai/api/paas/v4` | 401 |
+| Zhipu AI (CN) | `https://open.bigmodel.cn/api/paas/v4` | 401 |
+| Moonshot Kimi | `https://api.moonshot.ai/v1` | 401 |
+| MiniMax | `https://api.minimax.io/v1` | 401 |
+| StepFun | `https://api.stepfun.com/v1` | 401 |
+| SiliconFlow | `https://api.siliconflow.com/v1` | 401 |
+| ModelScope | `https://api-inference.modelscope.cn/v1` | 400 |
+| ByteDance Doubao | `https://ark.cn-beijing.volces.com/api/v3` | 401 |
+| Tencent Hunyuan | `https://api.hunyuan.cloud.tencent.com/v1` | 401 |
+| Baidu Qianfan | `https://qianfan.baidubce.com/v2` | 401 |
+| Baichuan | `https://api.baichuan-ai.com/v1` | 401 |
+| Chutes | `https://llm.chutes.ai/v1` | 401 |
+| OpenCode Zen | `https://opencode.ai/zen/v1` | 401 |
+| Baseten | `https://inference.baseten.co/v1` | 403 |
 
-## Automated verification
+Two endpoints answered `404` to the probe because they validate the model name
+before the credential, and the probe deliberately sends a non-existent model:
 
-The repository quality gate covers argument parsing, built-in provider normalization, model ranking and protocol filtering, authless providers, secret handling, catalog authentication modes, catalog response limits and timeouts, Windows command injection, standalone Copilot binary discovery, offline mode, and Responses API selection.
+| Provider | Base URL | Note |
+|---|---|---|
+| Fireworks AI | `https://api.fireworks.ai/inference/v1` | 404 on an unknown model |
+| Nvidia NIM | `https://integrate.api.nvidia.com/v1` | 404 on an unknown model |
 
-Run:
+## End-to-end
+
+Run through the router on Copilot CLI 1.0.79, personal free plan:
+
+| Provider | Model | Evidence |
+|---|---|---|
+| Chutes | `zai-org/GLM-5.2-TEE` | Model answered; picker selection reported `Model changed to: byok-…`; `AI Credits 0` |
+| Chutes | `moonshotai/Kimi-K2.6-TEE` | Model answered; `AI Credits 0` |
+| Chutes | `Qwen/Qwen3.5-397B-A17B-TEE` | Model answered; `AI Credits 0` |
+
+**Harness compatibility** was checked with a task requiring real tool use, not
+just chat: the agent read a file with its tools, reported the contents, and
+created a second file. Copilot reported `Changes +1 -0` with prompt caching
+active (57.2k cached tokens) and `AI Credits 0`.
+
+Two providers were configured but could not complete an end-to-end run for
+account reasons rather than technical ones, which is itself evidence the chain
+works — the errors came back from the provider, through the router, unchanged:
+
+| Provider | Response |
+|---|---|
+| OpenCode Zen / Go | `Insufficient balance` |
+| Alibaba Token Plan | `Your token-plan 1-week quota has been exhausted` |
+
+## Reproducing
 
 ```sh
-npm ci
-npm run check
-npm run test:coverage
-npm audit --omit=dev --audit-level=high
-npm audit --audit-level=high
-npm audit signatures
-npm pack --dry-run
+copilot-byok --list-providers          # which providers your keys activate
+copilot-byok --dry-run                 # router URL and published model ids
+copilot-byok -- -p "read README.md and summarise it" --allow-all-tools
 ```
 
-Provider catalogs and model availability can change independently of this repository. Re-run authenticated catalog and end-to-end checks before making a release claim for a provider that is not marked end-to-end above.
+Endpoint probes are not part of the automated test suite: they contact third-party
+services and would make CI depend on their availability.

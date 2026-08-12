@@ -1,208 +1,93 @@
 {
   "$schema": "../schemas/providers.schema.json",
+  "_comment": "Custom configuration: copy to ~/.config/copilot-byok/providers.json (or %APPDATA%\\copilot-byok\\providers.json) to replace the built-in catalog. Use it for different models, a company endpoint, or a local runtime. Never write keys here: only the names of the environment variables that hold them.",
   "providers": [
     {
       "id": "openai",
       "name": "OpenAI",
-      "type": "openai",
       "baseUrl": "https://api.openai.com/v1",
-      "apiKeyEnv": ["OPENAI_API_KEY", "COPILOT_OPENAI_API_KEY"],
-      "modelsUrl": "https://api.openai.com/v1/models",
-      "catalogModelId": "gpt-4.1",
-      "defaultModel": "gpt-5.6-sol",
-      "wireApi": "responses"
+      "apiKeyEnv": [
+        "OPENAI_API_KEY"
+      ],
+      "models": [
+        {
+          "model": "gpt-5.5",
+          "label": "GPT-5.5 (my key)",
+          "contextWindow": 1050000,
+          "maxOutputTokens": 128000
+        },
+        {
+          "model": "gpt-5.4-mini",
+          "label": "GPT-5.4 mini",
+          "contextWindow": 1050000,
+          "maxOutputTokens": 128000
+        }
+      ]
     },
     {
       "id": "anthropic",
-      "aliases": ["claude"],
       "name": "Anthropic",
-      "type": "anthropic",
-      "baseUrl": "https://api.anthropic.com",
-      "apiKeyEnv": ["ANTHROPIC_API_KEY", "COPILOT_ANTHROPIC_API_KEY"],
-      "modelsUrl": "https://api.anthropic.com/v1/models",
-      "modelsAuth": "x-api-key",
-      "modelsHeaders": { "anthropic-version": "2023-06-01" },
-      "catalogModelId": "claude-sonnet-4.6",
-      "defaultModel": "claude-sonnet-4-6"
-    },
-    {
-      "id": "ollama",
-      "name": "Ollama",
-      "type": "openai",
-      "baseUrl": "http://localhost:11434/v1",
-      "authRequired": false,
-      "modelsUrl": "http://localhost:11434/v1/models",
-      "catalogModelId": "gpt-4.1"
-    },
-    {
-      "id": "chutes",
-      "name": "Chutes",
-      "type": "openai",
-      "baseUrl": "https://llm.chutes.ai/v1",
-      "apiKeyEnv": ["CHUTES_API_KEY", "COPILOT_CHUTES_API_KEY"],
-      "modelsUrl": "https://llm.chutes.ai/v1/models",
-      "catalogModelId": "gpt-4.1",
-      "requireToolSupport": true
-    },
-    {
-      "id": "opencode-go",
-      "aliases": ["go", "opencode"],
-      "name": "OpenCode Go",
-      "type": "anthropic",
-      "baseUrl": "https://opencode.ai/zen/go",
-      "apiKeyEnv": ["OPENCODE_GO_API_KEY", "OPENCODE_API_KEY"],
-      "modelsUrl": "https://opencode.ai/zen/go/v1/models",
-      "catalogModelId": "claude-sonnet-4.6",
-      "defaultModel": "minimax-m3",
-      "modelIncludePrefixes": ["minimax-", "qwen"]
-    },
-    {
-      "id": "opencode-go-openai",
-      "aliases": ["go-openai", "opencode-chat"],
-      "name": "OpenCode Go (OpenAI)",
-      "type": "openai",
-      "baseUrl": "https://opencode.ai/zen/go/v1",
-      "apiKeyEnv": ["OPENCODE_GO_API_KEY", "OPENCODE_API_KEY"],
-      "modelsUrl": "https://opencode.ai/zen/go/v1/models",
-      "catalogModelId": "gpt-4.1",
-      "defaultModel": "deepseek-v4-pro",
-      "modelIncludePrefixes": ["grok-", "glm-", "kimi-", "deepseek-", "mimo-", "hy"]
-    },
-    {
-      "id": "fireworks",
-      "aliases": ["fire", "fireworks-ai"],
-      "name": "Fireworks AI",
-      "type": "anthropic",
-      "baseUrl": "https://api.fireworks.ai/inference",
-      "apiKeyEnv": ["FIREWORKS_API_KEY", "FIREWORKS_KEY"],
-      "modelsUrl": "https://api.fireworks.ai/v1/accounts/fireworks/models?filter=supports_serverless%3Dtrue&pageSize=200",
-      "catalogModelId": "claude-sonnet-4.6",
-      "requireToolSupport": true
+      "baseUrl": "https://api.anthropic.com/v1",
+      "apiKeyEnv": [
+        "ANTHROPIC_API_KEY"
+      ],
+      "models": [
+        {
+          "model": "claude-sonnet-4-6",
+          "label": "Claude Sonnet 4.6",
+          "contextWindow": 1000000,
+          "maxOutputTokens": 128000
+        }
+      ]
     },
     {
       "id": "deepseek",
-      "aliases": ["deepseek-ai"],
-      "name": "DeepSeek AI",
-      "type": "openai",
-      "baseUrl": "https://api.deepseek.com",
-      "apiKeyEnv": ["DEEPSEEK_API_KEY", "COPILOT_DEEPSEEK_API_KEY"],
-      "modelsUrl": "https://api.deepseek.com/models",
-      "catalogModelId": "gpt-4.1",
-      "defaultModel": "deepseek-v4-pro"
+      "name": "DeepSeek",
+      "baseUrl": "https://api.deepseek.com/v1",
+      "apiKeyEnv": [
+        "DEEPSEEK_API_KEY"
+      ],
+      "models": [
+        {
+          "model": "deepseek-v4-pro",
+          "label": "DeepSeek V4 Pro",
+          "contextWindow": 1000000,
+          "maxOutputTokens": 384000
+        }
+      ]
     },
     {
-      "id": "groq",
-      "name": "Groq",
-      "type": "openai",
-      "baseUrl": "https://api.groq.com/openai/v1",
-      "apiKeyEnv": ["GROQ_API_KEY", "COPILOT_GROQ_API_KEY"],
-      "modelsUrl": "https://api.groq.com/openai/v1/models",
-      "catalogModelId": "gpt-4.1",
-      "defaultModel": "openai/gpt-oss-120b",
-      "requireToolSupport": true
+      "id": "ollama",
+      "name": "Local Ollama",
+      "baseUrl": "http://127.0.0.1:11434/v1",
+      "authRequired": false,
+      "models": [
+        {
+          "model": "qwen3-coder:30b",
+          "label": "Qwen3 Coder 30B (local)",
+          "contextWindow": 262144,
+          "maxOutputTokens": 32768
+        }
+      ]
     },
     {
-      "id": "xai",
-      "aliases": ["grok"],
-      "name": "xAI",
-      "type": "openai",
-      "baseUrl": "https://api.x.ai/v1",
-      "apiKeyEnv": ["XAI_API_KEY", "COPILOT_XAI_API_KEY"],
-      "modelsUrl": "https://api.x.ai/v1/models",
-      "catalogModelId": "gpt-4.1",
-      "defaultModel": "grok-4.5",
-      "requireToolSupport": true
-    },
-    {
-      "id": "mistral",
-      "aliases": ["mistral-ai"],
-      "name": "Mistral AI",
-      "type": "openai",
-      "baseUrl": "https://api.mistral.ai/v1",
-      "apiKeyEnv": ["MISTRAL_API_KEY", "COPILOT_MISTRAL_API_KEY"],
-      "modelsUrl": "https://api.mistral.ai/v1/models",
-      "catalogModelId": "gpt-4.1",
-      "defaultModel": "devstral-latest",
-      "requireToolSupport": true
-    },
-    {
-      "id": "openrouter",
-      "aliases": ["or"],
-      "name": "OpenRouter",
-      "type": "openai",
-      "baseUrl": "https://openrouter.ai/api/v1",
-      "apiKeyEnv": ["OPENROUTER_API_KEY", "COPILOT_OPENROUTER_API_KEY"],
-      "modelsUrl": "https://openrouter.ai/api/v1/models?supported_parameters=tools&output_modalities=text",
-      "catalogModelId": "gpt-4.1",
-      "defaultModel": "openrouter/auto",
-      "requireToolSupport": true
-    },
-    {
-      "id": "moonshot",
-      "aliases": ["kimi", "moonshot-ai", "kimi-ai"],
-      "name": "Moonshot AI (Kimi)",
-      "type": "openai",
-      "baseUrl": "https://api.moonshot.ai/v1",
-      "apiKeyEnv": ["MOONSHOT_API_KEY", "KIMI_API_KEY", "COPILOT_MOONSHOT_API_KEY"],
-      "modelsUrl": "https://api.moonshot.ai/v1/models",
-      "catalogModelId": "gpt-4.1",
-      "defaultModel": "kimi-k3",
-      "requireToolSupport": true
-    },
-    {
-      "id": "zai",
-      "aliases": ["z-ai", "glm"],
-      "name": "Z.ai Coding Plan",
-      "type": "openai",
-      "baseUrl": "https://api.z.ai/api/coding/paas/v4",
-      "apiKeyEnv": ["ZAI_API_KEY", "Z_AI_API_KEY", "GLM_API_KEY", "COPILOT_ZAI_API_KEY"],
-      "modelsUrl": "https://api.z.ai/api/coding/paas/v4/models",
-      "catalogModelId": "gpt-4.1",
-      "defaultModel": "glm-5.2"
-    },
-    {
-      "id": "zai-api",
-      "aliases": ["zai-payg", "glm-api"],
-      "name": "Z.ai API",
-      "type": "openai",
-      "baseUrl": "https://api.z.ai/api/paas/v4",
-      "apiKeyEnv": ["ZAI_API_KEY", "Z_AI_API_KEY", "GLM_API_KEY", "COPILOT_ZAI_API_KEY"],
-      "modelsUrl": "https://api.z.ai/api/paas/v4/models",
-      "catalogModelId": "gpt-4.1",
-      "defaultModel": "glm-5.2"
-    },
-    {
-      "id": "minimax",
-      "aliases": ["minimax-ai"],
-      "name": "MiniMax",
-      "type": "openai",
-      "baseUrl": "https://api.minimax.io/v1",
-      "apiKeyEnv": ["MINIMAX_API_KEY", "COPILOT_MINIMAX_API_KEY"],
-      "modelsUrl": "https://api.minimax.io/v1/models",
-      "catalogModelId": "gpt-4.1",
-      "defaultModel": "MiniMax-M3"
-    },
-    {
-      "id": "alibaba-token-plan",
-      "aliases": ["alibaba", "qwen", "bailian", "dashscope", "modelstudio"],
-      "name": "Alibaba Model Studio Token Plan",
-      "type": "openai",
-      "baseUrl": "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
-      "apiKeyEnv": ["ALIBABA_TOKEN_PLAN_API_KEY", "DASHSCOPE_TOKEN_PLAN_API_KEY", "BAILIAN_TOKEN_PLAN_API_KEY"],
-      "catalogModelId": "gpt-4.1",
-      "defaultModel": "qwen3.7-plus",
-      "requireToolSupport": true
-    },
-    {
-      "id": "tencent-token-plan",
-      "aliases": ["tencent", "tokenhub", "tencent-tokenhub"],
-      "name": "Tencent Cloud Token Plan",
-      "type": "openai",
-      "baseUrl": "https://api.lkeap.cloud.tencent.com/plan/v3",
-      "apiKeyEnv": ["TENCENT_TOKEN_PLAN_API_KEY", "TOKENHUB_TOKEN_PLAN_API_KEY"],
-      "catalogModelId": "gpt-4.1",
-      "defaultModel": "tc-code-latest",
-      "requireToolSupport": true
+      "id": "company",
+      "name": "Internal gateway",
+      "baseUrl": "https://llm.example.com/v1",
+      "apiKeyEnv": [
+        "COMPANY_LLM_KEY"
+      ],
+      "headers": {
+        "X-Tenant-Id": "platform-team"
+      },
+      "models": [
+        {
+          "model": "internal-model",
+          "label": "Internal model",
+          "contextWindow": 200000,
+          "maxOutputTokens": 32000
+        }
+      ]
     }
   ]
 }

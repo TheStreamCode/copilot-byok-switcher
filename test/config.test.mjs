@@ -29,130 +29,65 @@ test('loads providers from JSON config and resolves apiKeyEnv', async () => {
   assert.equal(config.providers[0].catalogModelId, 'gpt-4.1');
 });
 
-test('loads documented built-in providers and aliases', async () => {
+test('loads the generated provider catalog', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'copilot-byok-empty-config-'));
   const config = await loadConfig({ env: { XDG_CONFIG_HOME: dir } });
-  assert.equal(config.providers[0].id, 'chutes');
+
+  // The catalog is regenerated from models.dev, so the test checks the shape and
+  // the fixed points rather than the exact list of models.
+  assert.ok(config.providers.length >= 20);
 
   const openai = findProvider(config, 'openai');
   assert.equal(openai.baseUrl, 'https://api.openai.com/v1');
-  assert.equal(openai.modelsUrl, 'https://api.openai.com/v1/models');
-  assert.equal(openai.defaultModel, 'gpt-5.6-sol');
-  assert.equal(openai.wireApi, 'responses');
-  assert.deepEqual(openai.apiKeyEnv, ['OPENAI_API_KEY', 'COPILOT_OPENAI_API_KEY']);
+  assert.ok(openai.apiKeyEnv.includes('OPENAI_API_KEY'));
+  assert.ok(openai.models.length > 0);
 
-  const anthropic = findProvider(config, 'claude');
-  assert.equal(anthropic.id, 'anthropic');
-  assert.equal(anthropic.baseUrl, 'https://api.anthropic.com');
-  assert.equal(anthropic.modelsAuth, 'x-api-key');
-  assert.equal(anthropic.modelsHeaders['anthropic-version'], '2023-06-01');
-  assert.deepEqual(anthropic.apiKeyEnv, ['ANTHROPIC_API_KEY', 'COPILOT_ANTHROPIC_API_KEY']);
+  const anthropic = findProvider(config, 'anthropic');
+  assert.equal(anthropic.baseUrl, 'https://api.anthropic.com/v1');
+
+  const gemini = findProvider(config, 'gemini');
+  assert.match(gemini.baseUrl, /generativelanguage\.googleapis\.com/);
 
   const ollama = findProvider(config, 'ollama');
-  assert.equal(ollama.baseUrl, 'http://localhost:11434/v1');
   assert.equal(ollama.authRequired, false);
   assert.equal(ollama.apiKey, null);
 
-  const opencodeAnthropic = findProvider(config, 'opencode');
-  assert.equal(opencodeAnthropic.id, 'opencode-go');
-  assert.equal(opencodeAnthropic.defaultModel, 'minimax-m3');
-  assert.deepEqual(opencodeAnthropic.modelIncludePrefixes, ['minimax-', 'qwen']);
-
-  const opencodeOpenAi = findProvider(config, 'go-openai');
-  assert.equal(opencodeOpenAi.id, 'opencode-go-openai');
-  assert.equal(opencodeOpenAi.type, 'openai');
-  assert.equal(opencodeOpenAi.baseUrl, 'https://opencode.ai/zen/go/v1');
-  assert.equal(opencodeOpenAi.defaultModel, 'deepseek-v4-pro');
-
-  const deepseek = findProvider(config, 'deepseek');
-  assert.equal(deepseek.name, 'DeepSeek AI');
-  assert.equal(deepseek.type, 'openai');
-  assert.equal(deepseek.baseUrl, 'https://api.deepseek.com');
-  assert.equal(deepseek.modelsUrl, 'https://api.deepseek.com/models');
-  assert.equal(deepseek.defaultModel, 'deepseek-v4-pro');
-  assert.deepEqual(deepseek.apiKeyEnv, ['DEEPSEEK_API_KEY', 'COPILOT_DEEPSEEK_API_KEY']);
-  assert.equal(deepseek.apiKey, null);
-
-  const zai = findProvider(config, 'glm');
-  assert.equal(zai.id, 'zai');
-  assert.equal(zai.name, 'Z.ai Coding Plan');
-  assert.equal(zai.type, 'openai');
-  assert.equal(zai.baseUrl, 'https://api.z.ai/api/coding/paas/v4');
-  assert.equal(zai.modelsUrl, 'https://api.z.ai/api/coding/paas/v4/models');
-  assert.equal(zai.defaultModel, 'glm-5.2');
-  assert.deepEqual(zai.apiKeyEnv, ['ZAI_API_KEY', 'Z_AI_API_KEY', 'GLM_API_KEY', 'COPILOT_ZAI_API_KEY']);
-  assert.equal(zai.apiKey, null);
-
-  const zaiApi = findProvider(config, 'glm-api');
-  assert.equal(zaiApi.id, 'zai-api');
-  assert.equal(zaiApi.baseUrl, 'https://api.z.ai/api/paas/v4');
-  assert.equal(zaiApi.modelsUrl, 'https://api.z.ai/api/paas/v4/models');
-  assert.equal(zaiApi.defaultModel, 'glm-5.2');
-
-  const minimax = findProvider(config, 'minimax-ai');
-  assert.equal(minimax.id, 'minimax');
-  assert.equal(minimax.name, 'MiniMax');
-  assert.equal(minimax.type, 'openai');
-  assert.equal(minimax.baseUrl, 'https://api.minimax.io/v1');
-  assert.equal(minimax.modelsUrl, 'https://api.minimax.io/v1/models');
-  assert.equal(minimax.defaultModel, 'MiniMax-M3');
-  assert.deepEqual(minimax.apiKeyEnv, ['MINIMAX_API_KEY', 'COPILOT_MINIMAX_API_KEY']);
-  assert.equal(minimax.apiKey, null);
-
-  const openrouter = findProvider(config, 'or');
-  assert.equal(openrouter.id, 'openrouter');
-  assert.equal(openrouter.baseUrl, 'https://openrouter.ai/api/v1');
-  assert.match(openrouter.modelsUrl, /supported_parameters=tools/);
-  assert.equal(openrouter.defaultModel, 'openrouter/auto');
-
-  const moonshot = findProvider(config, 'kimi');
-  assert.equal(moonshot.id, 'moonshot');
-  assert.equal(moonshot.baseUrl, 'https://api.moonshot.ai/v1');
-  assert.equal(moonshot.modelsUrl, 'https://api.moonshot.ai/v1/models');
-  assert.equal(moonshot.defaultModel, 'kimi-k3');
-
-  const groq = findProvider(config, 'groq');
-  assert.equal(groq.baseUrl, 'https://api.groq.com/openai/v1');
-  assert.equal(groq.defaultModel, 'openai/gpt-oss-120b');
-  assert.deepEqual(groq.apiKeyEnv, ['GROQ_API_KEY', 'COPILOT_GROQ_API_KEY']);
-
-  const xai = findProvider(config, 'grok');
-  assert.equal(xai.id, 'xai');
-  assert.equal(xai.baseUrl, 'https://api.x.ai/v1');
-  assert.equal(xai.defaultModel, 'grok-4.5');
-  assert.deepEqual(xai.apiKeyEnv, ['XAI_API_KEY', 'COPILOT_XAI_API_KEY']);
-
-  const mistral = findProvider(config, 'mistral-ai');
-  assert.equal(mistral.id, 'mistral');
-  assert.equal(mistral.baseUrl, 'https://api.mistral.ai/v1');
-  assert.equal(mistral.defaultModel, 'devstral-latest');
-  assert.deepEqual(mistral.apiKeyEnv, ['MISTRAL_API_KEY', 'COPILOT_MISTRAL_API_KEY']);
-
-  const alibaba = findProvider(config, 'qwen');
-  assert.equal(alibaba.id, 'alibaba-token-plan');
-  assert.equal(alibaba.baseUrl, 'https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1');
-  assert.equal(alibaba.modelsUrl, undefined);
-  assert.equal(alibaba.defaultModel, 'qwen3.7-plus');
-
-  const tencent = findProvider(config, 'tokenhub');
-  assert.equal(tencent.id, 'tencent-token-plan');
-  assert.equal(tencent.baseUrl, 'https://api.lkeap.cloud.tencent.com/plan/v3');
-  assert.equal(tencent.modelsUrl, undefined);
-  assert.equal(tencent.defaultModel, 'tc-code-latest');
+  for (const provider of config.providers) {
+    assert.equal(provider.type, 'openai', `${provider.id} must be OpenAI-compatible`);
+    for (const model of provider.models) {
+      assert.ok(model.model, `${provider.id} has a model without a name`);
+      if (model.contextWindow != null) assert.ok(model.contextWindow > 0);
+      if (model.maxOutputTokens != null) assert.ok(model.maxOutputTokens > 0);
+    }
+  }
 });
 
-test('keeps the published provider example synchronized with built-ins', async () => {
+test('every catalog provider exposes a reachable-looking HTTPS or localhost endpoint', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'copilot-byok-empty-config-'));
-  const builtIns = await loadConfig({ env: { XDG_CONFIG_HOME: dir } });
+  const config = await loadConfig({ env: { XDG_CONFIG_HOME: dir } });
+
+  for (const provider of config.providers) {
+    const url = new URL(provider.baseUrl);
+    const local = url.hostname === '127.0.0.1' || url.hostname === 'localhost';
+    assert.ok(url.protocol === 'https:' || local, `${provider.id} uses ${url.protocol}`);
+  }
+});
+
+test('the published example is a valid configuration', async () => {
   const example = await loadConfigFromPath(
     new URL('../examples/providers.example.json', import.meta.url),
     {}
   );
 
-  assert.deepEqual(
-    example.providers.map((provider) => provider.id).sort(),
-    builtIns.providers.map((provider) => provider.id).sort()
-  );
+  assert.ok(example.providers.length > 0);
+  for (const provider of example.providers) {
+    assert.ok(provider.id);
+    assert.ok(provider.baseUrl);
+    assert.ok(provider.models.length > 0, `${provider.id} must declare at least one model`);
+  }
+
+  // The example also covers the credential-free case (local runtime).
+  assert.ok(example.providers.some((provider) => provider.authRequired === false));
 });
 
 test('rejects inline API keys in provider config', async () => {

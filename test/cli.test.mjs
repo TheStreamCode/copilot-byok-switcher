@@ -22,7 +22,8 @@ test('prints help without touching provider config', async () => {
   });
 
   assert.equal(exitCode, 0);
-  assert.match(output.text(), /^copilot-byok - switch GitHub Copilot CLI/);
+  assert.match(output.text(), /^copilot-byok - your own provider models/);
+  assert.match(output.text(), /--list-providers/);
   assert.match(output.text(), /-v, --version/);
 });
 
@@ -117,7 +118,7 @@ test('does not expose credential configuration in missing-key errors', async () 
 
   await assert.rejects(
     () => main([
-      '--config', configPath,
+      '--legacy', '--config', configPath,
       '--provider', 'private-provider',
       '--model', 'private-model',
       '--dry-run',
@@ -210,7 +211,7 @@ test('sanitizes provider source key environment variables', () => {
 test('applies offline and Responses API overrides to the Copilot child environment', async () => {
   const output = captureWritable();
   const exitCode = await main([
-    '--provider', 'openrouter',
+    '--legacy', '--provider', 'openrouter',
     '--model', 'openrouter/auto',
     '--offline',
     '--wire-api', 'responses',
@@ -230,17 +231,32 @@ test('applies offline and Responses API overrides to the Copilot child environme
 });
 
 test('rejects OpenAI wire API overrides for Anthropic providers', async () => {
+  // The default catalog is entirely OpenAI-compatible, so the case is reproduced
+  // with a configuration that declares type anthropic explicitly.
+  const dir = await mkdtemp(join(tmpdir(), 'copilot-byok-anthropic-'));
+  const configPath = join(dir, 'providers.json');
+  await writeFile(configPath, JSON.stringify({
+    providers: [{
+      id: 'claude-native',
+      name: 'Claude nativo',
+      type: 'anthropic',
+      baseUrl: 'https://api.anthropic.com',
+      apiKeyEnv: 'TEST_ANTHROPIC_KEY',
+      defaultModel: 'claude-sonnet-4-6',
+    }],
+  }));
+
   await assert.rejects(
     () => main([
-      '--provider', 'fireworks',
-      '--model', 'accounts/fireworks/models/example',
+      '--legacy', '--config', configPath, '--provider', 'claude-native',
+      '--model', 'claude-sonnet-4-6',
       '--wire-api', 'responses',
       '--dry-run',
     ], {
       stdin: { isTTY: false },
       stdout: captureWritable(),
       stderr: captureWritable(),
-      env: { FIREWORKS_API_KEY: 'secret' },
+      env: { TEST_ANTHROPIC_KEY: 'secret' },
     }),
     /only for OpenAI-compatible/
   );
@@ -303,7 +319,7 @@ test('list-models fails when provider catalog request fails', async () => {
 
   try {
     await assert.rejects(
-      () => main(['--provider', 'chutes', '--list-models'], {
+      () => main(['--legacy', '--provider', 'chutes', '--list-models'], {
         stdin: { isTTY: false },
         stdout: captureWritable(),
         stderr: captureWritable(),
@@ -339,7 +355,7 @@ test('does not send provider credentials to a cross-origin model catalog by defa
   };
 
   try {
-    const exitCode = await main(['--config', configPath, '--provider', 'safe', '--list-models'], {
+    const exitCode = await main(['--legacy', '--config', configPath, '--provider', 'safe', '--list-models'], {
       stdin: { isTTY: false },
       stdout: captureWritable(),
       stderr: captureWritable(),
@@ -376,7 +392,7 @@ test('allows explicit authentication for a cross-origin model catalog', async ()
   };
 
   try {
-    await main(['--config', configPath, '--provider', 'authenticated', '--list-models'], {
+    await main(['--legacy', '--config', configPath, '--provider', 'authenticated', '--list-models'], {
       stdin: { isTTY: false },
       stdout: captureWritable(),
       stderr: captureWritable(),
@@ -412,7 +428,7 @@ test('supports x-api-key authentication for provider model catalogs', async () =
   };
 
   try {
-    await main(['--config', configPath, '--provider', 'anthropic-catalog', '--list-models'], {
+    await main(['--legacy', '--config', configPath, '--provider', 'anthropic-catalog', '--list-models'], {
       stdin: { isTTY: false },
       stdout: captureWritable(),
       stderr: captureWritable(),
@@ -434,7 +450,7 @@ test('allows authless providers and prefers their configured default model', asy
   });
 
   try {
-    const exitCode = await main(['--provider', 'ollama', '--model', 'local-model', '--dry-run'], {
+    const exitCode = await main(['--legacy', '--provider', 'ollama', '--model', 'local-model', '--dry-run'], {
       stdin: { isTTY: false },
       stdout: output,
       stderr: captureWritable(),
@@ -458,7 +474,7 @@ test('places configured default model before ranked catalog results', async () =
 
   try {
     const exitCode = await main([
-      '--config', configPath,
+      '--legacy', '--config', configPath,
       '--provider', 'first',
       '--no-model-prompt',
       '--dry-run',
@@ -484,7 +500,7 @@ test('rejects model catalog responses larger than five MiB', async () => {
 
   try {
     await assert.rejects(
-      () => main(['--provider', 'chutes', '--list-models'], {
+      () => main(['--legacy', '--provider', 'chutes', '--list-models'], {
         stdin: { isTTY: false },
         stdout: captureWritable(),
         stderr: captureWritable(),
@@ -503,7 +519,7 @@ test('enforces the model catalog limit while streaming without content-length', 
 
   try {
     await assert.rejects(
-      () => main(['--provider', 'chutes', '--list-models'], {
+      () => main(['--legacy', '--provider', 'chutes', '--list-models'], {
         stdin: { isTTY: false },
         stdout: captureWritable(),
         stderr: captureWritable(),
@@ -562,7 +578,7 @@ test('times out model catalog requests', async () => {
 
   try {
     await assert.rejects(
-      () => main(['--config', configPath, '--provider', 'slow', '--list-models'], {
+      () => main(['--legacy', '--config', configPath, '--provider', 'slow', '--list-models'], {
         stdin: { isTTY: false },
         stdout: captureWritable(),
         stderr: captureWritable(),
@@ -579,7 +595,7 @@ test('selects a provider from the interactive menu', async () => {
   const configPath = await writeProviderFixture();
   const output = captureWritable({ isTTY: true });
 
-  const exitCode = await main(['--config', configPath, '--no-model-prompt', '--dry-run'], {
+  const exitCode = await main(['--legacy', '--config', configPath, '--no-model-prompt', '--dry-run'], {
     stdin: readableTty(['2']),
     stdout: output,
     stderr: captureWritable(),
@@ -605,7 +621,7 @@ test('selects a ranked model from the interactive menu', async () => {
 
   const output = captureWritable({ isTTY: true });
   try {
-    const exitCode = await main(['--config', configPath, '--provider', 'first', '--dry-run'], {
+    const exitCode = await main(['--legacy', '--config', configPath, '--provider', 'first', '--dry-run'], {
       stdin: readableTty(['3']),
       stdout: output,
       stderr: captureWritable(),

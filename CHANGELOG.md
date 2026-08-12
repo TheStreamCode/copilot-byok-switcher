@@ -4,6 +4,50 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-08-12
+
+Your provider models now appear inside the Copilot `/model` picker, in the same
+session as the GitHub ones, instead of replacing them.
+
+### Added
+
+- A local router (`src/router.mjs`) placed in front of the Copilot API through the
+  `COPILOT_API_URL` variable. It appends the configured models to `GET /models`,
+  forwards `byok-*` requests to the matching provider, and passes everything else
+  through to GitHub untouched. No TLS interception is involved.
+- Automatic detection of the Copilot API tier (individual, business, enterprise),
+  overridable with `--upstream` or `COPILOT_BYOK_UPSTREAM`.
+- A generated provider catalog covering 30 providers: OpenAI, Anthropic, Google
+  Gemini, xAI, Mistral, Groq, Cerebras, Together, DeepInfra, Fireworks,
+  OpenRouter, DeepSeek, Alibaba Qwen (international and China), Z.AI, Zhipu,
+  Moonshot Kimi, MiniMax, StepFun, ByteDance Doubao, Tencent Hunyuan, Baidu
+  Qianfan, SiliconFlow, ModelScope, Chutes, OpenCode Zen and Go, Alibaba Token
+  Plan, plus local Ollama and LM Studio.
+- `npm run catalog:update`, which rebuilds the catalog from models.dev so context
+  windows and capabilities stay accurate. Models without tool-calling support are
+  excluded rather than published with wrong metadata.
+- `--list-providers`, showing which providers are usable now and which
+  environment variable unlocks each of the others.
+- A `models` array on providers, with per-model label, context window and output
+  limit, and an `enabled` flag for entries that ship disabled.
+- Tests for the catalog, the router (including provider forwarding and model-name
+  translation) and the upstream resolver.
+
+### Changed
+
+- Running `copilot-byok` with no arguments now starts the router; providers
+  activate only when their key is present, so the picker stays short.
+- Providers default to the OpenAI-compatible wire format: `type` is only needed
+  for the Anthropic and Azure shapes used by the legacy mode.
+- The published example is now a customization sample rather than a copy of the
+  built-in catalog.
+
+### Kept
+
+- The original single-provider behaviour, now behind `--legacy`, including
+  `--offline`, `--wire-api`, `--list-models` and model ranking.
+- `--native` for a stock Copilot session with no router.
+
 ## [0.3.0] - 2026-08-08
 
 ### Added

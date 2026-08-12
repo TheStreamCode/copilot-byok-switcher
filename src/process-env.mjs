@@ -40,7 +40,32 @@ const DEFAULT_SECRET_SOURCE_ENV = new Set([
   'BAILIAN_TOKEN_PLAN_API_KEY',
   'TENCENT_TOKEN_PLAN_API_KEY',
   'TOKENHUB_TOKEN_PLAN_API_KEY',
+  // Catalog since 1.0.0: the router uses these keys in its own process, so they
+  // must never reach the Copilot child process.
+  'GEMINI_API_KEY',
+  'GOOGLE_API_KEY',
+  'DASHSCOPE_API_KEY',
+  'DASHSCOPE_API_KEY_CN',
+  'QWEN_API_KEY',
+  'ZHIPU_API_KEY',
+  'ZHIPU_CN_API_KEY',
+  'STEPFUN_API_KEY',
+  'ARK_API_KEY',
+  'VOLCENGINE_API_KEY',
+  'HUNYUAN_API_KEY',
+  'QIANFAN_API_KEY',
+  'BAIDU_API_KEY',
+  'SILICONFLOW_API_KEY',
+  'MODELSCOPE_API_KEY',
+  'CEREBRAS_API_KEY',
+  'TOGETHER_API_KEY',
+  'DEEPINFRA_API_KEY',
+  'OPENCODE_ZEN_API_KEY',
 ]);
+
+// Every provider also accepts COPILOT_BYOK_<NAME>_API_KEY: the pattern covers the
+// whole family instead of listing each variant.
+const BYOK_SECRET_PREFIX = /^COPILOT_BYOK_.*_API_KEY$/i;
 
 export function sanitizeCopilotEnvironment(baseEnv, overlay = {}, stripEnvNames = []) {
   const sanitized = { ...baseEnv };
@@ -54,6 +79,7 @@ export function sanitizeCopilotEnvironment(baseEnv, overlay = {}, stripEnvNames 
     const normalizedKey = key.toUpperCase();
     if (
       COPILOT_BYOK_ENV_PATTERN.test(key) ||
+      BYOK_SECRET_PREFIX.test(key) ||
       STALE_COPILOT_ENV.has(normalizedKey) ||
       sourceSecrets.has(normalizedKey)
     ) {

@@ -10,6 +10,9 @@ export function parseArgs(argv) {
     dryRun: false,
     help: false,
     version: false,
+    legacy: false,
+    listProviders: false,
+    upstream: null,
     copilotArgs: [],
   };
 
@@ -33,6 +36,30 @@ export function parseArgs(argv) {
 
     if (arg === '--native') {
       result.providerName = 'native';
+      continue;
+    }
+
+    // Classic mode: one provider per session through COPILOT_PROVIDER_*, with no
+    // router and no GitHub models in the same list.
+    if (arg === '--legacy' || arg === '--single-provider') {
+      result.legacy = true;
+      continue;
+    }
+
+    if (arg === '--list-providers') {
+      result.listProviders = true;
+      continue;
+    }
+
+    if (arg === '--upstream') {
+      index += 1;
+      if (index >= argv.length) throw new Error(`${arg} requires a URL`);
+      result.upstream = requireOptionValue(argv[index], arg, 'a URL');
+      continue;
+    }
+
+    if (arg.startsWith('--upstream=')) {
+      result.upstream = requireOptionValue(arg.slice('--upstream='.length), '--upstream', 'a URL');
       continue;
     }
 

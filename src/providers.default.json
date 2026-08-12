@@ -1,0 +1,727 @@
+{
+  "$schema": "../schemas/providers.schema.json",
+  "_generated": "npm run catalog:update — do not edit by hand",
+  "providers": [
+    {
+      "id": "openai",
+      "name": "OpenAI",
+      "baseUrl": "https://api.openai.com/v1",
+      "modelsUrl": "https://api.openai.com/v1/models",
+      "apiKeyEnv": [
+        "OPENAI_API_KEY",
+        "COPILOT_BYOK_OPENAI_API_KEY"
+      ],
+      "models": [
+        {
+          "model": "gpt-5.6-sol",
+          "label": "GPT-5.6 Sol (OpenAI)",
+          "contextWindow": 1050000,
+          "maxOutputTokens": 128000,
+          "reasoning": true,
+          "vision": true
+        },
+        {
+          "model": "gpt-5.5",
+          "label": "GPT-5.5 (OpenAI)",
+          "contextWindow": 1050000,
+          "maxOutputTokens": 128000,
+          "reasoning": true,
+          "vision": true
+        },
+        {
+          "model": "gpt-5.4",
+          "label": "GPT-5.4 (OpenAI)",
+          "contextWindow": 1050000,
+          "maxOutputTokens": 128000,
+          "reasoning": true,
+          "vision": true
+        },
+        {
+          "model": "gpt-5.4-mini",
+          "label": "GPT-5.4 mini (OpenAI)",
+          "contextWindow": 400000,
+          "maxOutputTokens": 128000,
+          "reasoning": true,
+          "vision": true
+        }
+      ]
+    },
+    {
+      "id": "anthropic",
+      "name": "Anthropic",
+      "baseUrl": "https://api.anthropic.com/v1",
+      "modelsUrl": "https://api.anthropic.com/v1/models",
+      "apiKeyEnv": [
+        "ANTHROPIC_API_KEY",
+        "COPILOT_BYOK_ANTHROPIC_API_KEY"
+      ],
+      "models": [
+        {
+          "model": "claude-sonnet-4-6",
+          "label": "Claude Sonnet 4.6 (Anthropic)",
+          "contextWindow": 1000000,
+          "maxOutputTokens": 128000,
+          "reasoning": true,
+          "vision": true
+        },
+        {
+          "model": "claude-opus-4-6",
+          "label": "Claude Opus 4.6 (Anthropic)",
+          "contextWindow": 1000000,
+          "maxOutputTokens": 128000,
+          "reasoning": true,
+          "vision": true
+        },
+        {
+          "model": "claude-sonnet-4-5",
+          "label": "Claude Sonnet 4.5 (latest) (Anthropic)",
+          "contextWindow": 1000000,
+          "maxOutputTokens": 64000,
+          "reasoning": true,
+          "vision": true
+        },
+        {
+          "model": "claude-haiku-4-5",
+          "label": "Claude Haiku 4.5 (latest) (Anthropic)",
+          "contextWindow": 200000,
+          "maxOutputTokens": 64000,
+          "reasoning": true,
+          "vision": true
+        }
+      ]
+    },
+    {
+      "id": "gemini",
+      "name": "Google Gemini",
+      "baseUrl": "https://generativelanguage.googleapis.com/v1beta/openai",
+      "modelsUrl": "https://generativelanguage.googleapis.com/v1beta/openai/models",
+      "apiKeyEnv": [
+        "GEMINI_API_KEY",
+        "GOOGLE_API_KEY",
+        "COPILOT_BYOK_GEMINI_API_KEY"
+      ],
+      "models": [
+        {
+          "model": "gemini-3.5-flash",
+          "label": "Gemini 3.5 Flash (Google Gemini)",
+          "contextWindow": 1048576,
+          "maxOutputTokens": 65536,
+          "reasoning": true,
+          "vision": true
+        },
+        {
+          "model": "gemini-2.5-flash",
+          "label": "Gemini 2.5 Flash (Google Gemini)",
+          "contextWindow": 1048576,
+          "maxOutputTokens": 65536,
+          "reasoning": true,
+          "vision": true
+        },
+        {
+          "model": "gemini-3.5-flash-lite",
+          "label": "Gemini 3.5 Flash Lite (Google Gemini)",
+          "contextWindow": 1048576,
+          "maxOutputTokens": 65536,
+          "reasoning": true,
+          "vision": true
+        }
+      ]
+    },
+    {
+      "id": "xai",
+      "name": "xAI Grok",
+      "baseUrl": "https://api.x.ai/v1",
+      "modelsUrl": "https://api.x.ai/v1/models",
+      "apiKeyEnv": [
+        "XAI_API_KEY",
+        "COPILOT_BYOK_XAI_API_KEY"
+      ],
+      "models": [
+        {
+          "model": "grok-4.5",
+          "label": "Grok 4.5 (xAI Grok)",
+          "contextWindow": 500000,
+          "maxOutputTokens": 500000,
+          "reasoning": true,
+          "vision": true
+        },
+        {
+          "model": "grok-4.3",
+          "label": "Grok 4.3 (xAI Grok)",
+          "contextWindow": 1000000,
+          "maxOutputTokens": 30000,
+          "reasoning": true,
+          "vision": true
+        }
+      ]
+    },
+    {
+      "id": "mistral",
+      "name": "Mistral",
+      "baseUrl": "https://api.mistral.ai/v1",
+      "modelsUrl": "https://api.mistral.ai/v1/models",
+      "apiKeyEnv": [
+        "MISTRAL_API_KEY",
+        "COPILOT_BYOK_MISTRAL_API_KEY"
+      ],
+      "models": [
+        {
+          "model": "mistral-medium-latest",
+          "label": "Mistral Medium (latest) (Mistral)",
+          "contextWindow": 262144,
+          "maxOutputTokens": 262144,
+          "reasoning": true,
+          "vision": true
+        },
+        {
+          "model": "devstral-medium-latest",
+          "label": "Devstral 2 (latest) (Mistral)",
+          "contextWindow": 262144,
+          "maxOutputTokens": 262144
+        }
+      ]
+    },
+    {
+      "id": "deepseek",
+      "name": "DeepSeek",
+      "baseUrl": "https://api.deepseek.com/v1",
+      "modelsUrl": "https://api.deepseek.com/v1/models",
+      "apiKeyEnv": [
+        "DEEPSEEK_API_KEY",
+        "COPILOT_BYOK_DEEPSEEK_API_KEY"
+      ],
+      "models": [
+        {
+          "model": "deepseek-v4-pro",
+          "label": "DeepSeek V4 Pro (DeepSeek)",
+          "contextWindow": 1000000,
+          "maxOutputTokens": 384000,
+          "reasoning": true
+        },
+        {
+          "model": "deepseek-v4-flash",
+          "label": "DeepSeek V4 Flash (DeepSeek)",
+          "contextWindow": 1000000,
+          "maxOutputTokens": 384000,
+          "reasoning": true
+        },
+        {
+          "model": "deepseek-reasoner",
+          "label": "DeepSeek Reasoner (DeepSeek)",
+          "contextWindow": 1000000,
+          "maxOutputTokens": 384000,
+          "reasoning": true,
+          "vision": true
+        },
+        {
+          "model": "deepseek-chat",
+          "label": "DeepSeek Chat (DeepSeek)",
+          "contextWindow": 1000000,
+          "maxOutputTokens": 384000,
+          "vision": true
+        }
+      ]
+    },
+    {
+      "id": "qwen",
+      "name": "Alibaba Qwen",
+      "baseUrl": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+      "modelsUrl": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/models",
+      "apiKeyEnv": [
+        "DASHSCOPE_API_KEY",
+        "QWEN_API_KEY",
+        "COPILOT_BYOK_QWEN_API_KEY"
+      ],
+      "models": [
+        {
+          "model": "qwen3.7-max",
+          "label": "Qwen3.7 Max (Alibaba Qwen)",
+          "contextWindow": 1000000,
+          "maxOutputTokens": 65536,
+          "reasoning": true
+        },
+        {
+          "model": "qwen3.7-plus",
+          "label": "Qwen3.7 Plus (Alibaba Qwen)",
+          "contextWindow": 1000000,
+          "maxOutputTokens": 65536,
+          "reasoning": true
+        },
+        {
+          "model": "qwen3-coder-plus",
+          "label": "Qwen3 Coder Plus (Alibaba Qwen)",
+          "contextWindow": 1048576,
+          "maxOutputTokens": 65536
+        }
+      ]
+    },
+    {
+      "id": "qwen-cn",
+      "name": "Alibaba Qwen (China)",
+      "baseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "modelsUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1/models",
+      "apiKeyEnv": [
+        "DASHSCOPE_API_KEY_CN",
+        "COPILOT_BYOK_QWEN_CN_API_KEY"
+      ],
+      "models": [
+        {
+          "model": "qwen3.7-max",
+          "label": "Qwen3.7 Max (Alibaba Qwen (China))",
+          "contextWindow": 1000000,
+          "maxOutputTokens": 65536,
+          "reasoning": true
+        },
+        {
+          "model": "qwen3-coder-plus",
+          "label": "Qwen3 Coder Plus (Alibaba Qwen (China))",
+          "contextWindow": 1048576,
+          "maxOutputTokens": 65536
+        }
+      ]
+    },
+    {
+      "id": "zai",
+      "name": "Z.AI GLM",
+      "baseUrl": "https://api.z.ai/api/paas/v4",
+      "modelsUrl": "https://api.z.ai/api/paas/v4/models",
+      "apiKeyEnv": [
+        "ZAI_API_KEY",
+        "ZHIPU_API_KEY",
+        "COPILOT_BYOK_ZAI_API_KEY"
+      ],
+      "models": [
+        {
+          "model": "glm-5.2",
+          "label": "GLM-5.2 (Z.AI GLM)",
+          "contextWindow": 1000000,
+          "maxOutputTokens": 131072,
+          "reasoning": true
+        },
+        {
+          "model": "glm-5.1",
+          "label": "GLM-5.1 (Z.AI GLM)",
+          "contextWindow": 200000,
+          "maxOutputTokens": 131072,
+          "reasoning": true
+        },
+        {
+          "model": "glm-4.7",
+          "label": "GLM-4.7 (Z.AI GLM)",
+          "contextWindow": 204800,
+          "maxOutputTokens": 131072,
+          "reasoning": true
+        }
+      ]
+    },
+    {
+      "id": "zhipu-cn",
+      "name": "Zhipu AI (China)",
+      "baseUrl": "https://open.bigmodel.cn/api/paas/v4",
+      "modelsUrl": "https://open.bigmodel.cn/api/paas/v4/models",
+      "apiKeyEnv": [
+        "ZHIPU_CN_API_KEY",
+        "COPILOT_BYOK_ZHIPU_CN_API_KEY"
+      ],
+      "models": [
+        {
+          "model": "glm-5.2",
+          "label": "GLM-5.2 (Zhipu AI (China))",
+          "contextWindow": 1000000,
+          "maxOutputTokens": 131072,
+          "reasoning": true
+        },
+        {
+          "model": "glm-4.7",
+          "label": "GLM-4.7 (Zhipu AI (China))",
+          "contextWindow": 204800,
+          "maxOutputTokens": 131072,
+          "reasoning": true
+        }
+      ]
+    },
+    {
+      "id": "kimi",
+      "name": "Moonshot Kimi",
+      "baseUrl": "https://api.moonshot.ai/v1",
+      "modelsUrl": "https://api.moonshot.ai/v1/models",
+      "apiKeyEnv": [
+        "MOONSHOT_API_KEY",
+        "KIMI_API_KEY",
+        "COPILOT_BYOK_KIMI_API_KEY"
+      ],
+      "models": [
+        {
+          "model": "kimi-k3",
+          "label": "Kimi K3 (Moonshot Kimi)",
+          "contextWindow": 1048576,
+          "maxOutputTokens": 131072,
+          "reasoning": true,
+          "vision": true
+        },
+        {
+          "model": "kimi-k2.6",
+          "label": "Kimi K2.6 (Moonshot Kimi)",
+          "contextWindow": 262144,
+          "maxOutputTokens": 262144,
+          "reasoning": true,
+          "vision": true
+        },
+        {
+          "model": "kimi-k2.5",
+          "label": "Kimi K2.5 (Moonshot Kimi)",
+          "contextWindow": 262144,
+          "maxOutputTokens": 262144,
+          "reasoning": true
+        }
+      ]
+    },
+    {
+      "id": "minimax",
+      "name": "MiniMax",
+      "baseUrl": "https://api.minimax.io/v1",
+      "modelsUrl": "https://api.minimax.io/v1/models",
+      "apiKeyEnv": [
+        "MINIMAX_API_KEY",
+        "COPILOT_BYOK_MINIMAX_API_KEY"
+      ],
+      "models": [
+        {
+          "model": "MiniMax-M3",
+          "label": "MiniMax-M3 (MiniMax)",
+          "contextWindow": 1000000,
+          "maxOutputTokens": 128000,
+          "reasoning": true,
+          "vision": true
+        },
+        {
+          "model": "MiniMax-M2.7",
+          "label": "MiniMax-M2.7 (MiniMax)",
+          "contextWindow": 204800,
+          "maxOutputTokens": 131072,
+          "reasoning": true
+        }
+      ]
+    },
+    {
+      "id": "stepfun",
+      "name": "StepFun",
+      "baseUrl": "https://api.stepfun.com/v1",
+      "modelsUrl": "https://api.stepfun.com/v1/models",
+      "apiKeyEnv": [
+        "STEPFUN_API_KEY",
+        "COPILOT_BYOK_STEPFUN_API_KEY"
+      ],
+      "models": []
+    },
+    {
+      "id": "doubao",
+      "name": "ByteDance Doubao",
+      "baseUrl": "https://ark.cn-beijing.volces.com/api/v3",
+      "modelsUrl": "https://ark.cn-beijing.volces.com/api/v3/models",
+      "apiKeyEnv": [
+        "ARK_API_KEY",
+        "VOLCENGINE_API_KEY",
+        "COPILOT_BYOK_DOUBAO_API_KEY"
+      ],
+      "note": "Volcengine model names are account-specific endpoint ids: add yours under `models`.",
+      "models": []
+    },
+    {
+      "id": "hunyuan",
+      "name": "Tencent Hunyuan",
+      "baseUrl": "https://api.hunyuan.cloud.tencent.com/v1",
+      "modelsUrl": "https://api.hunyuan.cloud.tencent.com/v1/models",
+      "apiKeyEnv": [
+        "HUNYUAN_API_KEY",
+        "COPILOT_BYOK_HUNYUAN_API_KEY"
+      ],
+      "models": []
+    },
+    {
+      "id": "qianfan",
+      "name": "Baidu Qianfan",
+      "baseUrl": "https://qianfan.baidubce.com/v2",
+      "modelsUrl": "https://qianfan.baidubce.com/v2/models",
+      "apiKeyEnv": [
+        "QIANFAN_API_KEY",
+        "BAIDU_API_KEY",
+        "COPILOT_BYOK_QIANFAN_API_KEY"
+      ],
+      "models": []
+    },
+    {
+      "id": "siliconflow",
+      "name": "SiliconFlow",
+      "baseUrl": "https://api.siliconflow.com/v1",
+      "modelsUrl": "https://api.siliconflow.com/v1/models",
+      "apiKeyEnv": [
+        "SILICONFLOW_API_KEY",
+        "COPILOT_BYOK_SILICONFLOW_API_KEY"
+      ],
+      "models": []
+    },
+    {
+      "id": "modelscope",
+      "name": "ModelScope",
+      "baseUrl": "https://api-inference.modelscope.cn/v1",
+      "modelsUrl": "https://api-inference.modelscope.cn/v1/models",
+      "apiKeyEnv": [
+        "MODELSCOPE_API_KEY",
+        "COPILOT_BYOK_MODELSCOPE_API_KEY"
+      ],
+      "models": []
+    },
+    {
+      "id": "openrouter",
+      "name": "OpenRouter",
+      "baseUrl": "https://openrouter.ai/api/v1",
+      "modelsUrl": "https://openrouter.ai/api/v1/models",
+      "apiKeyEnv": [
+        "OPENROUTER_API_KEY",
+        "COPILOT_BYOK_OPENROUTER_API_KEY"
+      ],
+      "models": []
+    },
+    {
+      "id": "groq",
+      "name": "Groq",
+      "baseUrl": "https://api.groq.com/openai/v1",
+      "modelsUrl": "https://api.groq.com/openai/v1/models",
+      "apiKeyEnv": [
+        "GROQ_API_KEY",
+        "COPILOT_BYOK_GROQ_API_KEY"
+      ],
+      "models": [
+        {
+          "model": "openai/gpt-oss-20b",
+          "label": "GPT OSS 20B (Groq)",
+          "contextWindow": 131072,
+          "maxOutputTokens": 65536,
+          "reasoning": true
+        },
+        {
+          "model": "llama-3.3-70b-versatile",
+          "label": "Llama 3.3 70B (Groq)",
+          "contextWindow": 131072,
+          "maxOutputTokens": 32768
+        }
+      ]
+    },
+    {
+      "id": "cerebras",
+      "name": "Cerebras",
+      "baseUrl": "https://api.cerebras.ai/v1",
+      "modelsUrl": "https://api.cerebras.ai/v1/models",
+      "apiKeyEnv": [
+        "CEREBRAS_API_KEY",
+        "COPILOT_BYOK_CEREBRAS_API_KEY"
+      ],
+      "models": []
+    },
+    {
+      "id": "together",
+      "name": "Together AI",
+      "baseUrl": "https://api.together.xyz/v1",
+      "modelsUrl": "https://api.together.xyz/v1/models",
+      "apiKeyEnv": [
+        "TOGETHER_API_KEY",
+        "COPILOT_BYOK_TOGETHER_API_KEY"
+      ],
+      "models": []
+    },
+    {
+      "id": "deepinfra",
+      "name": "DeepInfra",
+      "baseUrl": "https://api.deepinfra.com/v1/openai",
+      "modelsUrl": "https://api.deepinfra.com/v1/openai/models",
+      "apiKeyEnv": [
+        "DEEPINFRA_API_KEY",
+        "COPILOT_BYOK_DEEPINFRA_API_KEY"
+      ],
+      "models": []
+    },
+    {
+      "id": "fireworks",
+      "name": "Fireworks AI",
+      "baseUrl": "https://api.fireworks.ai/inference/v1",
+      "modelsUrl": "https://api.fireworks.ai/inference/v1/models",
+      "apiKeyEnv": [
+        "FIREWORKS_API_KEY",
+        "COPILOT_BYOK_FIREWORKS_API_KEY"
+      ],
+      "models": []
+    },
+    {
+      "id": "chutes",
+      "name": "Chutes",
+      "baseUrl": "https://llm.chutes.ai/v1",
+      "modelsUrl": "https://llm.chutes.ai/v1/models",
+      "apiKeyEnv": [
+        "CHUTES_API_KEY",
+        "COPILOT_BYOK_CHUTES_API_KEY"
+      ],
+      "models": [
+        {
+          "model": "zai-org/GLM-5.2-TEE",
+          "label": "GLM 5.2 TEE (Chutes)",
+          "contextWindow": 1048576,
+          "maxOutputTokens": 65535,
+          "reasoning": true
+        },
+        {
+          "model": "moonshotai/Kimi-K2.6-TEE",
+          "label": "Kimi K2.6 TEE (Chutes)",
+          "contextWindow": 262144,
+          "maxOutputTokens": 65535,
+          "reasoning": true,
+          "vision": true
+        },
+        {
+          "model": "deepseek-ai/DeepSeek-V4-Flash-0731-TEE",
+          "label": "DeepSeek V4 Flash 0731 TEE (Chutes)",
+          "contextWindow": 1048576,
+          "maxOutputTokens": 131072,
+          "reasoning": true
+        }
+      ]
+    },
+    {
+      "id": "opencode-zen",
+      "name": "OpenCode Zen",
+      "baseUrl": "https://opencode.ai/zen/v1",
+      "modelsUrl": "https://opencode.ai/zen/v1/models",
+      "apiKeyEnv": [
+        "OPENCODE_ZEN_API_KEY",
+        "COPILOT_BYOK_OPENCODE_ZEN_API_KEY"
+      ],
+      "models": [
+        {
+          "model": "claude-sonnet-4-6",
+          "label": "Claude Sonnet 4.6 (OpenCode Zen)",
+          "contextWindow": 1000000,
+          "maxOutputTokens": 64000,
+          "reasoning": true,
+          "vision": true
+        },
+        {
+          "model": "gpt-5.5-pro",
+          "label": "GPT-5.5 Pro (OpenCode Zen)",
+          "contextWindow": 1050000,
+          "maxOutputTokens": 128000,
+          "reasoning": true,
+          "vision": true
+        },
+        {
+          "model": "gemini-3.5-flash",
+          "label": "Gemini 3.5 Flash (OpenCode Zen)",
+          "contextWindow": 1048576,
+          "maxOutputTokens": 65536,
+          "reasoning": true,
+          "vision": true
+        }
+      ]
+    },
+    {
+      "id": "opencode-go",
+      "name": "OpenCode Go",
+      "baseUrl": "https://opencode.ai/zen/go/v1",
+      "modelsUrl": "https://opencode.ai/zen/go/v1/models",
+      "apiKeyEnv": [
+        "OPENCODE_GO_API_KEY",
+        "COPILOT_BYOK_OPENCODE_GO_API_KEY"
+      ],
+      "models": [
+        {
+          "model": "glm-5.2",
+          "label": "GLM-5.2 (OpenCode Go)",
+          "contextWindow": 1000000,
+          "maxOutputTokens": 131072,
+          "reasoning": true
+        },
+        {
+          "model": "kimi-k2.6",
+          "label": "Kimi K2.6 (OpenCode Go)",
+          "contextWindow": 262144,
+          "maxOutputTokens": 65536,
+          "reasoning": true,
+          "vision": true
+        },
+        {
+          "model": "minimax-m3",
+          "label": "MiniMax-M3 (OpenCode Go)",
+          "contextWindow": 1000000,
+          "maxOutputTokens": 131072,
+          "reasoning": true
+        },
+        {
+          "model": "qwen3.7-max",
+          "label": "Qwen3.7 Max (OpenCode Go)",
+          "contextWindow": 1000000,
+          "maxOutputTokens": 65536,
+          "reasoning": true
+        }
+      ]
+    },
+    {
+      "id": "alibaba-token-plan",
+      "name": "Alibaba Token Plan",
+      "baseUrl": "https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1",
+      "modelsUrl": "https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1/models",
+      "apiKeyEnv": [
+        "ALIBABA_TOKEN_PLAN_API_KEY",
+        "COPILOT_BYOK_ALIBABA_TOKEN_PLAN_API_KEY"
+      ],
+      "models": [
+        {
+          "model": "qwen3.8-max",
+          "label": "Qwen3.8 Max (Alibaba Token Plan)",
+          "contextWindow": 1000000,
+          "maxOutputTokens": 131072,
+          "reasoning": true,
+          "vision": true
+        },
+        {
+          "model": "deepseek-v4-pro",
+          "label": "DeepSeek V4 Pro (Alibaba Token Plan)",
+          "contextWindow": 1000000,
+          "maxOutputTokens": 384000,
+          "reasoning": true
+        },
+        {
+          "model": "kimi-k2.6",
+          "label": "Kimi K2.6 (Alibaba Token Plan)",
+          "contextWindow": 262144,
+          "maxOutputTokens": 262144,
+          "reasoning": true,
+          "vision": true
+        },
+        {
+          "model": "glm-5.2",
+          "label": "GLM-5.2 (Alibaba Token Plan)",
+          "contextWindow": 1000000,
+          "maxOutputTokens": 131072,
+          "reasoning": true
+        }
+      ]
+    },
+    {
+      "id": "ollama",
+      "name": "Ollama (locale)",
+      "baseUrl": "http://127.0.0.1:11434/v1",
+      "modelsUrl": "http://127.0.0.1:11434/v1/models",
+      "authRequired": false,
+      "enabled": false,
+      "models": []
+    },
+    {
+      "id": "lmstudio",
+      "name": "LM Studio (locale)",
+      "baseUrl": "http://127.0.0.1:1234/v1",
+      "modelsUrl": "http://127.0.0.1:1234/v1/models",
+      "authRequired": false,
+      "enabled": false,
+      "models": []
+    }
+  ]
+}

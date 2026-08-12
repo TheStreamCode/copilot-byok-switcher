@@ -1,20 +1,25 @@
 {
   "name": "copilot-byok-switcher",
-  "version": "0.3.0",
-  "description": "Safely switch GitHub Copilot CLI between native mode and BYOK providers without storing credentials or modifying your shell.",
+  "version": "1.0.0",
+  "description": "Add your own provider models to the GitHub Copilot CLI /model picker, in the same session as the GitHub ones, without storing credentials.",
   "keywords": [
     "github-copilot",
     "copilot-cli",
     "byok",
     "bring-your-own-key",
-    "cli",
-    "model-switcher",
-    "ai-coding-agent",
-    "developer-tools",
+    "model-picker",
+    "llm-router",
     "openai",
     "anthropic",
+    "gemini",
+    "deepseek",
+    "qwen",
+    "glm",
+    "kimi",
+    "minimax",
     "ollama",
-    "llm",
+    "ai-coding-agent",
+    "developer-tools",
     "nodejs",
     "cross-platform"
   ],
@@ -35,22 +40,24 @@
     "copilot-byok": "bin/copilot-byok.mjs"
   },
   "files": [
-    "bin/",
-    "src/",
-    "examples/",
-    "docs/",
-    "schemas/",
     "CHANGELOG.md",
+    "LICENSE",
     "README.md",
     "SECURITY.md",
-    "LICENSE"
+    "bin/",
+    "docs/",
+    "examples/",
+    "schemas/",
+    "scripts/",
+    "src/"
   ],
   "scripts": {
     "test": "node --test",
     "test:coverage": "node --test --experimental-test-coverage",
     "lint": "eslint .",
     "check": "npm run lint && npm test",
-    "prepack": "npm run check"
+    "prepack": "npm run check",
+    "catalog:update": "node scripts/update-catalog.mjs"
   },
   "engines": {
     "node": ">=22.13.0"
