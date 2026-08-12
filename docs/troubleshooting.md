@@ -11,8 +11,14 @@ copilot-byok shim status     # confirms the directory is really on PATH
 ```
 
 A startup line reading `copilot-byok: added N models from N providers` is the
-quickest way to tell which one you are in. Note that a shell profile alias only
-covers that one shell — the shim works in all of them, which is why it exists.
+quickest way to tell which one you are in.
+
+If `copilot` still runs the original CLI after installing the shim, check
+`copilot-byok shim status`. On Windows the system PATH is searched before the user
+one, so a CLI installed machine-wide always wins over a shim in a user directory,
+whatever you add to your own PATH. The shell function installed alongside it is
+what takes precedence; it needs a new terminal to be picked up, and PowerShell 5.1
+and PowerShell 7 read different profile files.
 
 ## No BYOK models appear in `/model`
 

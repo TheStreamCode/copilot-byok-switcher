@@ -196,22 +196,33 @@ models unlocked by a key added this way appear the **next** time you start
 ## Making plain `copilot` use it
 
 By default the two commands stay separate: `copilot` is GitHub's CLI, `copilot-byok`
-is this one. If you would rather type `copilot` and get your models, install the
-shim — it works in every shell, on all three platforms, rather than only in one
-whose profile you edited:
+is this one. If you would rather type `copilot` and get your models:
 
 ```sh
-copilot-byok shim install     # prints the PATH line for your platform
-copilot-byok shim status      # says whether the directory is actually on PATH
+copilot-byok shim install
+copilot-byok shim status      # says which mechanism is actually in effect
 ```
 
-It writes a small `copilot` into `~/.local/share/copilot-byok/bin`
-(`%APPDATA%\copilot-byokin` on Windows, plus a `.cmd` there) which hands the real
-CLI's path to the launcher through `COPILOT_BIN` — that is what stops it calling
-itself. Put that directory first on PATH and `copilot` starts the router
-everywhere: PowerShell, bash, zsh, fish, cmd, the VS Code terminal.
+It does two things, because on many machines one is not enough:
 
-`copilot-byok shim uninstall` removes it; take the directory off PATH to finish.
+- writes a small `copilot` into `~/.local/share/copilot-byok/bin`
+  (`%APPDATA%\copilot-byok\bin` on Windows, plus a `.cmd`), and
+- adds a `copilot` function to your shell profiles.
+
+The function is what makes it work when another `copilot` sits earlier on PATH. On
+Windows that is the normal case: the **system** PATH is searched before the user
+one, so a CLI installed machine-wide beats anything you can add for your own user
+— a shim alone would never be reached. A shell function takes precedence over PATH
+entirely, in PowerShell and in POSIX shells alike.
+
+Both mechanisms hand the real CLI's path to the launcher through `COPILOT_BIN`,
+which is what stops it resolving the shim and calling itself. `copilot-vanilla`
+runs the original CLI, and `copilot-byok shim uninstall` removes everything it
+wrote — the profile block is delimited by markers, so the rest of your profile is
+never touched.
+
+Open a **new** terminal afterwards. PowerShell 5.1 and PowerShell 7 read different
+profile files; both are handled.
 
 ## Reasoning effort
 
