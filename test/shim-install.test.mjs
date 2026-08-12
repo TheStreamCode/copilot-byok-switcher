@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, readdir, stat } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import { platform, tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { delimiter, join } from 'node:path';
 import { Writable } from 'node:stream';
 import test from 'node:test';
 
 import { main } from '../src/cli.mjs';
-import { shimDir } from '../src/shim-install.mjs';
+import { findShadowingEntries, shimDir } from '../src/shim-install.mjs';
 
 function captureWritable() {
   const chunks = [];
@@ -22,17 +22,24 @@ function captureWritable() {
 
 async function scratchIo() {
   const dir = await mkdtemp(join(tmpdir(), 'copilot-byok-shim-'));
+  const profileDir = await mkdtemp(join(tmpdir(), 'copilot-byok-profile-'));
   const stdout = captureWritable();
   const stderr = captureWritable();
   return {
     dir,
+    profileDir,
     stdout,
     stderr,
     io: {
       stdin: { isTTY: false },
       stdout,
       stderr,
-      env: { COPILOT_BYOK_SHIM_DIR: dir, COPILOT_BIN: '/usr/local/bin/copilot', PATH: '' },
+      env: {
+        COPILOT_BYOK_SHIM_DIR: dir,
+        COPILOT_BYOK_PROFILE_DIR: profileDir,
+        COPILOT_BIN: '/usr/local/bin/copilot',
+        PATH: '',
+      },
     },
   };
 }
@@ -65,27 +72,71 @@ test('Windows also gets a .cmd, other systems do not need one', async () => {
   assert.equal(entries.includes('copilot.cmd'), platform() === 'win32');
 });
 
-test('install explains how to put the directory on PATH for this platform', async () => {
-  const { io, stdout } = await scratchIo();
-  await main(['shim', 'install'], io);
+test('a copilot earlier on PATH is detected: the shim alone cannot win there', async () => {
+  const earlier = await mkdtemp(join(tmpdir(), 'copilot-byok-earlier-'));
+  const ours = await mkdtemp(join(tmpdir(), 'copilot-byok-ours-'));
+  const env = { PATH: [earlier, ours].join(delimiter) };
+  const exists = (path) => path.startsWith(earlier);
 
-  const text = stdout.text();
-  assert.match(text, platform() === 'win32' ? /SetEnvironmentVariable/ : /bashrc|zshrc|fish_add_path/);
+  assert.deepEqual(findShadowingEntries(ours, env, exists), [earlier]);
+  assert.deepEqual(findShadowingEntries(ours, { PATH: ours }, () => false), []);
 });
 
-test('status reports whether the directory is actually on PATH', async () => {
+test('install says plainly when only the shell function can work', async () => {
+  const { io, dir, stdout } = await scratchIo();
+  const earlier = await mkdtemp(join(tmpdir(), 'copilot-byok-earlier-'));
+  await writeFile(join(earlier, platform() === 'win32' ? 'copilot.cmd' : 'copilot'), '');
+  io.env.PATH = [earlier, dir].join(delimiter);
+
+  await main(['shim', 'install'], io);
+
+  assert.match(stdout.text(), /comes earlier on PATH/);
+  assert.match(stdout.text(), /shell function/, 'the user must be told what actually fixes it');
+});
+
+test('the shell function is written between markers and removed cleanly', async () => {
+  const { io, profileDir } = await scratchIo();
+  const bashrc = join(profileDir, '.bashrc');
+  await writeFile(bashrc, 'export EXISTING=1\n');
+
+  await main(['shim', 'install'], io);
+  let contents = await readFile(bashrc, 'utf8');
+  assert.match(contents, /export EXISTING=1/, 'existing content survives');
+  assert.match(contents, /command copilot-byok/);
+
+  // Installing twice must not duplicate the block.
+  await main(['shim', 'install'], io);
+  contents = await readFile(bashrc, 'utf8');
+  assert.equal(contents.match(/# >>> copilot-byok >>>/g).length, 1);
+
+  await main(['shim', 'uninstall'], io);
+  contents = await readFile(bashrc, 'utf8');
+  assert.match(contents, /export EXISTING=1/, 'only our block is removed');
+  assert.doesNotMatch(contents, /copilot-byok/);
+});
+
+test('a shell profile that does not exist is left alone', async () => {
+  const { io, profileDir } = await scratchIo();
+
+  await main(['shim', 'install'], io);
+
+  const entries = await readdir(profileDir);
+  assert.ok(!entries.includes('.bashrc'), 'no shell profile is conjured out of nothing');
+});
+
+test('status reports whether the shim can actually take precedence', async () => {
   const { io, dir, stdout } = await scratchIo();
 
   await main(['shim', 'status'], io);
-  assert.match(stdout.text(), /not installed/);
+  assert.match(stdout.text(), /Not installed/);
 
   await main(['shim', 'install'], io);
   await main(['shim', 'status'], io);
-  assert.match(stdout.text(), /NOT on PATH/, 'the empty PATH in this test must be reported');
+  assert.match(stdout.text(), /not on PATH/, 'the empty PATH in this test must be reported');
 
   io.env.PATH = dir;
   await main(['shim', 'status'], io);
-  assert.match(stdout.text(), /is on PATH/);
+  assert.match(stdout.text(), /on PATH and nothing precedes it/);
 });
 
 test('uninstall removes the shim and is safe to repeat', async () => {
