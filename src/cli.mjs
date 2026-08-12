@@ -13,6 +13,7 @@ import { resolveLiveModels, runCopilotWithRouter, selectActiveProviders, startRo
 import { runKeysCommand } from './keys-command.mjs';
 import { loadKeys } from './keystore.mjs';
 import { runExtensionCommand } from './extension-install.mjs';
+import { runShimCommand } from './shim-install.mjs';
 import { createSessionLog } from './session-log.mjs';
 
 const DEFAULT_MODEL_FETCH_TIMEOUT_MS = 10_000;
@@ -30,6 +31,11 @@ export async function main(argv = process.argv.slice(2), io = defaultIo()) {
   // `extension` installs the in-session /byok command.
   if (argv[0] === 'extension') {
     return runExtensionCommand({ argv: argv.slice(1), io });
+  }
+
+  // `shim` makes plain `copilot` go through the router, in every shell.
+  if (argv[0] === 'shim') {
+    return runShimCommand({ argv: argv.slice(1), io });
   }
 
   const args = parseArgs(argv);
@@ -478,6 +484,11 @@ In-session command:
   copilot-byok extension install    Add /byok to Copilot (needs --experimental)
   copilot-byok extension status
   copilot-byok extension uninstall
+
+Make plain "copilot" use the router (any shell, any OS):
+  copilot-byok shim install
+  copilot-byok shim status
+  copilot-byok shim uninstall
 
 Classic mode (one provider per session, without the GitHub models):
       --legacy              Use the COPILOT_PROVIDER_* variables

@@ -16,6 +16,12 @@ All notable changes to this project are documented in this file.
   session so no round trip is wasted twice.
 - Discovery now records whether a model reasons, from the provider's own metadata.
 
+- **`copilot-byok shim install`** makes plain `copilot` go through the router in
+  every shell and on all three platforms, instead of an alias that only works in
+  the shell whose profile was edited. The shim passes the real CLI's path through
+  `COPILOT_BIN`, which is what keeps it from calling itself, and `shim status`
+  reports whether its directory is actually on PATH.
+
 ### Fixed
 
 - A provider that ships no curated models could never activate: the check for

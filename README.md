@@ -193,6 +193,26 @@ One caveat: Copilot caches its model list for the lifetime of a session, so
 models unlocked by a key added this way appear the **next** time you start
 `copilot-byok` — neither reopening the picker nor `/restart` refreshes them.
 
+## Making plain `copilot` use it
+
+By default the two commands stay separate: `copilot` is GitHub's CLI, `copilot-byok`
+is this one. If you would rather type `copilot` and get your models, install the
+shim — it works in every shell, on all three platforms, rather than only in one
+whose profile you edited:
+
+```sh
+copilot-byok shim install     # prints the PATH line for your platform
+copilot-byok shim status      # says whether the directory is actually on PATH
+```
+
+It writes a small `copilot` into `~/.local/share/copilot-byok/bin`
+(`%APPDATA%\copilot-byokin` on Windows, plus a `.cmd` there) which hands the real
+CLI's path to the launcher through `COPILOT_BIN` — that is what stops it calling
+itself. Put that directory first on PATH and `copilot` starts the router
+everywhere: PowerShell, bash, zsh, fish, cmd, the VS Code terminal.
+
+`copilot-byok shim uninstall` removes it; take the directory off PATH to finish.
+
 ## Reasoning effort
 
 Copilot's own `--effort` setting does not reach BYOK providers: requests sent with
