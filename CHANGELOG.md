@@ -4,6 +4,24 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-08-12
+
+### Added
+
+- A progress line during startup. Querying the providers takes about a second when
+  they all answer and up to the timeout when one does not, and with no sign of life
+  that pause reads as a hang — it happens before Copilot has drawn anything:
+
+  ```
+  ⠹ copilot-byok  [██░] 2/3 providers  alibaba-token-plan
+  ```
+
+  It counts exactly the providers being queried, names the ones still pending, and
+  wipes itself before the summary line. Written to stderr only when stderr is a
+  terminal, so piped output and CI logs stay clean; `COPILOT_BYOK_PROGRESS=off`
+  disables it and `COPILOT_BYOK_ASCII=1` swaps the Braille spinner for ASCII where
+  the console cannot render it.
+
 ## [1.3.0] - 2026-08-12
 
 ### Added

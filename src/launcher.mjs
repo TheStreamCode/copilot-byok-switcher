@@ -41,6 +41,10 @@ export async function resolveLiveModels(providers, { onEvent = () => {}, discove
   }));
 }
 
+export function isQueryable(provider) {
+  return hasCredential(provider);
+}
+
 function hasCredential(provider) {
   if (provider.enabled === false) return false;
   if (provider.authRequired === false) return true;

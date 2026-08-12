@@ -9,12 +9,13 @@ import { findProvider, loadConfig } from './config.mjs';
 import { rankModels } from './model-ranking.mjs';
 import { buildProviderEnvironment } from './provider-env.mjs';
 import { sanitizeCopilotEnvironment } from './process-env.mjs';
-import { resolveLiveModels, runCopilotWithRouter, selectActiveProviders, startRouter } from './launcher.mjs';
+import { isQueryable, resolveLiveModels, runCopilotWithRouter, selectActiveProviders, startRouter } from './launcher.mjs';
 import { runKeysCommand } from './keys-command.mjs';
 import { loadKeys } from './keystore.mjs';
 import { runExtensionCommand } from './extension-install.mjs';
 import { runShimCommand } from './shim-install.mjs';
 import { createSessionLog } from './session-log.mjs';
+import { createProgress } from './progress.mjs';
 
 const DEFAULT_MODEL_FETCH_TIMEOUT_MS = 10_000;
 const MAX_MODEL_CATALOG_BYTES = 5 * 1024 * 1024;
@@ -81,7 +82,7 @@ async function runRouterMode({ args, config, io }) {
   // them here, and checking first would discard it while it holds a valid key.
   const providers = args.noDiscovery
     ? config.providers
-    : await resolveLiveModels(config.providers, { onEvent: sessionLog.onEvent });
+    : await discoverWithProgress({ config, io, sessionLog });
 
   if (selectActiveProviders(providers).length === 0) {
     io.stderr.write(
@@ -134,6 +135,29 @@ async function runRouterMode({ args, config, io }) {
     await router.close();
     // Only now is the terminal ours again: Copilot's TUI has released the screen.
     sessionLog.summarize();
+  }
+}
+
+/**
+ * Queries the providers while showing that something is happening. The pause is a
+ * second when everyone answers and up to the timeout when someone does not, which
+ * without a sign of life reads as a hang.
+ */
+async function discoverWithProgress({ config, io, sessionLog }) {
+  // Exactly the providers discovery will query, or the bar would never fill.
+  const waitingOn = config.providers.filter(isQueryable).map((provider) => provider.id);
+
+  const progress = createProgress(io, waitingOn);
+
+  try {
+    return await resolveLiveModels(config.providers, {
+      onEvent: (event) => {
+        if (event.provider) progress.done(event.provider);
+        sessionLog.onEvent(event);
+      },
+    });
+  } finally {
+    progress.finish();
   }
 }
 

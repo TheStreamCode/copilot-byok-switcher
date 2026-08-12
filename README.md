@@ -138,6 +138,17 @@ there this morning. All 30 providers were verified to expose an OpenAI-style
 others) supply the real context window, output limit and tool-calling support
 along with it.
 
+While this happens the startup shows what it is waiting on, since the pause comes
+before Copilot has drawn anything:
+
+```
+⠹ copilot-byok  [██░] 2/3 providers  alibaba-token-plan
+```
+
+It appears only on a terminal — piped output and CI logs stay clean —
+and `COPILOT_BYOK_PROGRESS=off` turns it off, `COPILOT_BYOK_ASCII=1` swaps the
+spinner for ASCII.
+
 Only the providers you have a key for are queried, in parallel, with a hard
 timeout. Measured on three configured providers: about a second. Results are
 cached for ten minutes, failures for one.
