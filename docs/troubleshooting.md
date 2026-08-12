@@ -168,6 +168,11 @@ the level never leaves the CLI. Set it per model instead:
 If a model rejects that level the router steps down automatically and says so in
 the log, so a wrong value degrades rather than breaking every request.
 
+The selector is missing from `/model` on purpose: on CLI 1.0.79 the level it
+returns never reaches the provider (github/copilot-cli#4012). Enable it with
+`reasoningEffortPicker: true` once that is fixed — the router already honours an
+incoming level, so nothing else needs changing.
+
 ## A request hangs
 
 The router gives up on a provider that accepts the connection and then sends

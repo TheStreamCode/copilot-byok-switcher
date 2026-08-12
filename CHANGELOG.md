@@ -4,6 +4,26 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-08-12
+
+### Added
+
+- **`reasoningEffortPicker`**, off by default, declares reasoning-effort support so
+  Copilot shows its effort selector for a model. It is off because on CLI 1.0.79
+  the chosen level never reaches a BYOK provider: payloads sent with `low` and with
+  `high` are byte-identical, in both the chat-completions and the responses wire
+  formats. This is a known CLI bug, not a design decision — see
+  github/copilot-cli#4012 (same model family as ours, still open), #3119 and #3135,
+  the last of which records that the level *was* being sent in 1.0.41.
+- `reasoningEffortLevels` overrides which levels the selector offers, since models
+  differ: Claude Sonnet 4.6 has no `xhigh`, Gemini stops at `high`.
+
+Everything is in place for the day the CLI forwards it again: the router already
+prefers an incoming `reasoning_effort` over the configured one, so a user's pick
+will take effect with no further change. Turning on `reasoningEffortPicker` is then
+the only step — and until then `reasoningEffort` in the config remains the setting
+that actually reaches the provider.
+
 ## [1.2.0] - 2026-08-12
 
 ### Added

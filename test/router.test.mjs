@@ -379,3 +379,51 @@ test('an unsupported effort steps down instead of failing the request', async ()
     await new Promise((resolve) => provider.close(resolve));
   }
 });
+
+test('when the CLI starts sending an effort, the user choice wins over the config', async () => {
+  const seen = [];
+  const provider = http.createServer((req, res) => {
+    let body = '';
+    req.on('data', (chunk) => { body += chunk; });
+    req.on('end', () => {
+      seen.push(JSON.parse(body).reasoning_effort);
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end('{}');
+    });
+  });
+  await new Promise((resolve) => provider.listen(0, '127.0.0.1', resolve));
+
+  const catalog = buildCatalog([{
+    id: 'acme', name: 'Acme', baseUrl: `http://127.0.0.1:${provider.address().port}/v1`,
+    apiKey: 'k', models: [{ model: 'thinker', reasoningEffort: 'low' }],
+  }]);
+
+  const router = createRouter({
+    catalog,
+    upstream: createUpstreamResolver({ explicit: 'https://upstream.invalid' }),
+  });
+  await new Promise((resolve) => router.listen(0, '127.0.0.1', resolve));
+  const url = `http://127.0.0.1:${router.address().port}/chat/completions`;
+
+  try {
+    // Today: the CLI sends nothing, so the configured level is applied.
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model: 'byok-acme-thinker', messages: [] }),
+    });
+
+    // After the CLI is fixed: what the user picked must not be overridden.
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model: 'byok-acme-thinker', messages: [], reasoning_effort: 'high' }),
+    });
+
+    assert.deepEqual(seen, ['low', 'high']);
+  } finally {
+    router.closeAllConnections();
+    await new Promise((resolve) => router.close(resolve));
+    await new Promise((resolve) => provider.close(resolve));
+  }
+});

@@ -202,6 +202,10 @@
           "type": "integer",
           "minimum": 1,
           "description": "How many discovered models this provider may contribute (default 12)."
+        },
+        "reasoningEffortPicker": {
+          "type": "boolean",
+          "description": "Default for every model of this provider; a model-level value wins."
         }
       },
       "additionalProperties": true,
@@ -276,6 +280,27 @@
         "family": {
           "type": "string",
           "description": "Well-known model family, used by Copilot for model-specific handling."
+        },
+        "reasoningEffortPicker": {
+          "type": "boolean",
+          "description": "Declare reasoning-effort support so Copilot shows its effort selector. Off by default: on CLI 1.0.79 the chosen level never reaches a BYOK provider (github/copilot-cli#4012). Turn it on once the CLI forwards it again."
+        },
+        "reasoningEffortLevels": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": [
+              "none",
+              "minimal",
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ]
+          },
+          "description": "Levels offered in the selector, when it is enabled. Defaults to low/medium/high; models differ, so override where needed."
         }
       },
       "additionalProperties": true

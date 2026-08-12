@@ -124,6 +124,15 @@ back on their own. Measured against `zai-org/GLM-5.2-TEE` on Chutes:
 So a level that a model does not accept breaks every request to it, which is why
 the router steps the level down until one is accepted and remembers the outcome.
 
+The level was not delivered in any configuration tried on CLI 1.0.79: router mode
+with the capability declared, the official BYOK variables over chat-completions,
+the same over the responses wire format, model ids `gpt-5.4`, `gpt-5.5`,
+`gpt-5.6-sol`, `claude-sonnet-4.6` and `gemini-3.1-pro-preview`, and
+`COPILOT_OFFLINE=true` (the workaround reported in copilot-cli#3119). Declaring
+`supported_endpoints: ['/responses']` does make the CLI switch to that format —
+observed request keys: `include, input, instructions, model, parallel_tool_calls,
+store, text, tools` — but still with no reasoning field.
+
 ## End-to-end
 
 Run through the router on Copilot CLI 1.0.79, personal free plan:

@@ -226,27 +226,48 @@ profile files; both are handled.
 
 ## Reasoning effort
 
-Copilot's own `--effort` setting does not reach BYOK providers: requests sent with
-`low` and with `high` are byte-identical on the wire (verified against a recording
-provider). So the level is set per model instead, and the router applies it:
+Copilot's own `--effort` flag and its effort selector do not reach BYOK providers.
+Verified against a provider that records what it receives: the payloads produced
+with `low` and with `high` are byte-identical, in both wire formats. This is a
+known CLI bug rather than a limitation of BYOK itself — see
+[copilot-cli#4012](https://github.com/github/copilot-cli/issues/4012) (still open,
+same symptom on GLM-5.2),
+[#3119](https://github.com/github/copilot-cli/issues/3119) and
+[#3135](https://github.com/github/copilot-cli/issues/3135), which records that the
+level *was* being sent in 1.0.41.
+
+Until it is fixed, set the level per model and the router applies it:
 
 ```json
 { "model": "deepseek-reasoner", "reasoningEffort": "high" }
 ```
 
-`reasoningEffort` also works at provider level as a default. Accepted values are
-the ones Copilot itself uses: `none`, `minimal`, `low`, `medium`, `high`, `xhigh`,
-`max`.
+`reasoningEffort` also works at provider level as a default. Values are the ones
+Copilot uses: `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`.
 
 **Levels differ per model and providers do not fall back.** GLM-5.2 accepts `max`
-but answers `400` to `xhigh`; a rejected level would otherwise break every request
-to that model. The router steps down one level at a time until one is accepted,
-records what happened in the log, and remembers it so the next call goes straight
-to the level that works:
+but answers `400` to `xhigh`; an unsupported level would otherwise break every
+request to that model. The router steps down one level at a time until one is
+accepted, records it, and remembers it for the session:
 
 ```
 notice: chutes: zai-org/GLM-5.2-TEE rejected reasoning effort "xhigh", retrying with "high"
 ```
+
+### Ready for the fix
+
+Nothing here needs rewriting when the CLI starts forwarding the level again: the
+router already prefers an incoming `reasoning_effort` over the configured one, so
+your pick in the picker will simply take effect. The only step will be to turn the
+selector on:
+
+```json
+{ "model": "deepseek-reasoner", "reasoningEffortPicker": true }
+```
+
+It ships off, because a selector that accepts a choice and changes nothing is
+worse than no selector. `reasoningEffortLevels` narrows what it offers, for models
+that do not take every level.
 
 ## Custom configuration
 

@@ -150,6 +150,12 @@ function normalizeModels(value, providerName) {
 
     const model = requiredString(entry.model, `${where} requires a model name`);
     if (entry.reasoningEffort != null) validateEffort(entry.reasoningEffort, where);
+    if (entry.reasoningEffortLevels != null) {
+      if (!Array.isArray(entry.reasoningEffortLevels) || entry.reasoningEffortLevels.length === 0) {
+        throw new Error(`${where} reasoningEffortLevels must be a non-empty array`);
+      }
+      entry.reasoningEffortLevels.forEach((level) => validateEffort(level, where));
+    }
     for (const field of ['contextWindow', 'maxOutputTokens']) {
       if (entry[field] != null && (!Number.isInteger(entry[field]) || entry[field] <= 0)) {
         throw new Error(`${where} ${field} must be a positive integer`);

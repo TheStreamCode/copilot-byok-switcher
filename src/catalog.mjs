@@ -5,6 +5,10 @@
 
 const ID_PREFIX = 'byok';
 
+// The levels Copilot offers. Overridable per model, since they differ: Claude
+// Sonnet 4.6 has no `xhigh`, Gemini stops at `high`.
+const DEFAULT_EFFORT_LEVELS = ['low', 'medium', 'high'];
+
 /**
  * @param {object[]} providers   Already-resolved providers (with apiKey where needed).
  * @returns {{entries: object[], routes: Map<string, {provider: object, model: object}>}}
@@ -52,6 +56,11 @@ export function isByokModelId(value) {
 }
 
 function buildEntry({ id, provider, model }) {
+  // Provider-level switches apply to every model it publishes.
+  model = {
+    ...model,
+    reasoningEffortPicker: model.reasoningEffortPicker ?? provider.reasoningEffortPicker,
+  };
   const context = model.contextWindow || 128_000;
   const output = model.maxOutputTokens || 32_000;
   const { promptBudget, outputBudget } = splitBudget(context, output);
@@ -86,11 +95,18 @@ function buildEntry({ id, provider, model }) {
         parallel_tool_calls: true,
         structured_outputs: true,
         ...(model.vision ? { vision: true } : {}),
-        // No `reasoning_effort` here on purpose. Declaring it makes Copilot show
-        // its effort selector, but the chosen level never reaches a BYOK provider:
-        // payloads sent with --effort low and --effort high are byte-identical
-        // (verified against a recording provider). The level is applied by the
-        // router instead, from `reasoningEffort` in the provider config.
+        // Off by default, and deliberately so. Declaring this makes Copilot show
+        // its effort selector, but on CLI 1.0.79 the chosen level never reaches a
+        // BYOK provider: payloads sent with low and with high are byte-identical,
+        // in both wire formats (github/copilot-cli#4012, #3119, #3135). A selector
+        // that changes nothing is worse than no selector.
+        //
+        // Turn it on with `reasoningEffortPicker: true` once the CLI forwards the
+        // level again — the router already prefers an incoming reasoning_effort
+        // over the configured one, so it will start working with no other change.
+        ...(model.reasoning && model.reasoningEffortPicker
+          ? { reasoning_effort: model.reasoningEffortLevels || DEFAULT_EFFORT_LEVELS }
+          : {}),
       },
     },
   };
