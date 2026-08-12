@@ -158,6 +158,12 @@ Anything a user needs at runtime must be listed in `files` in `package.json`.
 `copilot-byok extension install` and `npm run catalog:update` break for anyone
 who installed from npm rather than from a clone.
 
+Tests that exercise `shim` **must** set `COPILOT_BYOK_SHIM_DIR` and
+`COPILOT_BYOK_PROFILE_DIR` to temporary directories. Without the second one,
+`shim uninstall` resolves the real profile paths and will wipe the developer's own
+`.bashrc` or PowerShell profile — this happened once, and it silently undid a fix
+that had already been verified working.
+
 ## Compatibility and anti-breaking-change rules
 
 - The CLI contract is public: existing flags, aliases, provider ids, and the `--dry-run` JSON shape must keep
