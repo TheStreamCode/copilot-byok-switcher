@@ -5,6 +5,7 @@ import spawn from 'cross-spawn';
 
 import { buildCatalog } from './catalog.mjs';
 import { discoverModels } from './discovery.mjs';
+import { readCache } from './model-cache.mjs';
 import { createRouter } from './router.mjs';
 import { createUpstreamResolver } from './upstream.mjs';
 import { resolveCopilotBin } from './copilot-bin.mjs';
@@ -25,14 +26,22 @@ export function selectActiveProviders(providers) {
  * now. Providers are queried in parallel; one that fails keeps its curated list,
  * so a slow or unreachable provider never empties the picker.
  */
-export async function resolveLiveModels(providers, { onEvent = () => {}, discoverImpl = discoverModels } = {}) {
+export async function resolveLiveModels(providers, { onEvent = () => {}, discoverImpl = discoverModels, env = process.env } = {}) {
+  const diskCache = await readCache(env).catch(() => ({}));
+
   return Promise.all(providers.map(async (provider) => {
     // Only ask providers we can actually authenticate with. Querying the rest
     // would add a round trip and a 401 in the log for every unconfigured entry.
     if (!hasCredential(provider)) return provider;
 
-    const { models, source, reason } = await discoverImpl(provider);
-    if (source === 'catalog' && reason) {
+    const { models, source, reason } = await discoverImpl(provider, { diskCache, env });
+    if (source === 'remembered') {
+      onEvent({
+        type: 'notice',
+        provider: provider.id,
+        message: `model discovery failed (${reason}); using the list this key returned last time`,
+      });
+    } else if (source === 'catalog' && reason) {
       onEvent({ type: 'error', provider: provider.id, message: `model discovery fell back to the shipped list: ${reason}` });
     } else {
       onEvent({ type: 'discovery', provider: provider.id, count: models.length, source });

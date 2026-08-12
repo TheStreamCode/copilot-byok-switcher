@@ -8,6 +8,7 @@
 // back to it entirely — a network hiccup must never empty the picker.
 
 import { rankModels } from './model-ranking.mjs';
+import { recallModels, rememberModels } from './model-cache.mjs';
 
 // Providers are queried in parallel, so this is the worst-case startup delay, not
 // a per-provider cost. Measured: the slower catalogs answer in about five seconds,
@@ -38,8 +39,14 @@ export async function discoverModels(provider, {
   fetchImpl = fetch,
   cache = sessionCache,
   now = Date.now,
+  diskCache = null,
+  env = process.env,
 } = {}) {
-  const curated = provider.models || [];
+  // The shipped list is generic; a provider's catalog belongs to the plan behind
+  // the key. Preferring what this key last returned avoids offering models the
+  // user does not have when a request fails.
+  const remembered = diskCache ? recallModels(diskCache, provider.id, now) : null;
+  const curated = remembered || provider.models || [];
 
   if (provider.discover === false || !provider.modelsUrl) {
     return { models: curated, source: 'catalog', reason: 'discovery disabled' };
@@ -80,14 +87,17 @@ export async function discoverModels(provider, {
     }
 
     const result = models.length === 0
-      ? { models: curated, source: 'catalog', reason: 'no usable models returned' }
+      ? { models: curated, source: remembered ? 'remembered' : 'catalog', reason: 'no usable models returned' }
       : { models, source: 'provider' };
 
     cache?.set(cacheKey, { at: now(), result });
+    if (result.source === 'provider' && diskCache) {
+      await rememberModels(provider.id, models, env, now).catch(() => {});
+    }
     return result;
   } catch (error) {
     const reason = error.name === 'TimeoutError' ? `timed out after ${timeoutMs}ms` : error.message;
-    const result = { models: curated, source: 'catalog', reason };
+    const result = { models: curated, source: remembered ? 'remembered' : 'catalog', reason };
 
     // Cache failures too: a provider that is down or rejecting the key would
     // otherwise be retried on every single model-list request.

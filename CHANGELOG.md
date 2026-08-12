@@ -4,7 +4,7 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
-## [1.3.1] - 2026-08-12
+## [1.4.0] - 2026-08-12
 
 ### Added
 
@@ -21,6 +21,27 @@ All notable changes to this project are documented in this file.
   terminal, so piped output and CI logs stay clean; `COPILOT_BYOK_PROGRESS=off`
   disables it and `COPILOT_BYOK_ASCII=1` swaps the Braille spinner for ASCII where
   the console cannot render it.
+
+### Fixed
+
+- **A failed discovery no longer offers models the key cannot use.** Reported from
+  use: an Alibaba Token Plan showed `kimi-k2.6`, which that plan does not include,
+  while `deepseek-v4-flash-0731`, which it does, was missing. The cause was the
+  fallback: the shipped list is generic, but a provider's catalog belongs to the
+  plan behind the key, so falling back to it invents models and hides real ones.
+
+  The list a key actually returned is now kept on disk and preferred over the
+  shipped one when a request fails, with the reason recorded:
+
+  ```
+  notice: alibaba-token-plan: model discovery failed (401 Unauthorized);
+          using the list this key returned last time
+  ```
+
+  Entries older than thirty days are ignored, an empty response never overwrites a
+  good list, and the file is written atomically. It lives in
+  `~/.cache/copilot-byok/models.json` (`%LOCALAPPDATA%` on Windows) and can be
+  moved with `COPILOT_BYOK_MODEL_CACHE`.
 
 ## [1.3.0] - 2026-08-12
 

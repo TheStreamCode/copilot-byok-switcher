@@ -85,7 +85,9 @@ The list comes from the provider itself. Three things can hide a model:
   chosen by the same ranking used elsewhere. Raise it with `maxDiscoveredModels`
   in your config, or pin the exact models you want under `models`.
 - **Discovery fell back.** If the provider was unreachable or rejected the key,
-  the shipped list is used instead; the router log says which and why.
+  the list it returned last time is used; failing that, the shipped one. The log
+  says which and why. A shipped list is generic, so it may name models your plan
+  does not include — if you see one that should not be there, that is the sign.
 
 Results are cached for ten minutes, so a model added upstream may take that long
 to appear — restart to pick it up immediately.

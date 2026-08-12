@@ -160,9 +160,13 @@ which is generated from [models.dev](https://models.dev) and refreshed with:
 npm run catalog:update
 ```
 
-That catalog also serves as the fallback: if a provider is unreachable, slow or
-rejects the key, its curated list is used instead — a network hiccup never
-empties the picker. To skip discovery entirely and always use the shipped lists:
+If a request fails — a rate limit, a blip, an expired key — the list that key
+returned last time is used instead, kept in `~/.cache/copilot-byok/models.json`
+(`%LOCALAPPDATA%` on Windows). That matters: the shipped list is generic, while a
+provider's catalog belongs to the plan behind your key, so falling back to it can
+offer models your plan does not include and hide ones it does. Only when nothing
+was ever remembered does the shipped list step in, so a hiccup never empties the
+picker. To skip discovery entirely and always use the shipped lists:
 
 ```sh
 copilot-byok --no-discovery
