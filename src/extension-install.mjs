@@ -46,18 +46,7 @@ async function install(io) {
   io.stdout.write('Extensions are gated behind the experimental flag, so start Copilot with:\n');
   io.stdout.write('  copilot-byok -- --experimental\n');
   io.stdout.write('or turn it on once inside a session with: /settings experimental on\n\n');
-  io.stdout.write('Then run /byok to add a provider key without leaving the session.\n\n');
-
-  io.stderr.write(
-    'WARNING — known issue with Copilot CLI 1.0.79\n' +
-    'A loaded extension can leave the CLI stuck on "still waiting on extensions",\n' +
-    'and while it is in that state the /model picker stays empty: your BYOK models\n' +
-    'will not be listed. This happens with any extension, including an empty one, and\n' +
-    'with or without this router — it is not specific to /byok.\n\n' +
-    'If your models disappear from /model, run:\n' +
-    '  copilot-byok extension uninstall\n\n' +
-    'Keys can always be managed from the terminal with "copilot-byok keys set".\n'
-  );
+  io.stdout.write('Then run /byok to add a provider key without leaving the session.\n');
   return 0;
 }
 

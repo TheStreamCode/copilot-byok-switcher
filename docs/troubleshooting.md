@@ -2,24 +2,15 @@
 
 ## No BYOK models appear in `/model`
 
-**First, check whether the `/byok` extension is installed:**
+**If the startup line says `still waiting on extensions`**, an extension is
+holding up the session: Copilot asks for approval before loading one that
+requests elevated permissions, and until that prompt is answered the model list
+never arrives, so the picker comes up empty. Answer the prompt, or start with
+`--allow-all-tools` to approve it up front.
 
-```sh
-copilot-byok extension status
-```
-
-On Copilot CLI 1.0.79 a loaded extension can leave the CLI stuck on
-`still waiting on extensions`, and while it is in that state the picker stays
-empty regardless of how many providers you configured. The startup line at the
-bottom of the screen gives it away. Remove it and the models come back:
-
-```sh
-copilot-byok extension uninstall
-```
-
-This affects any extension, including an empty one, with or without this router,
-so it is a CLI behaviour rather than something the switcher does. Keys can still
-be managed with `copilot-byok keys set`.
+`/byok` itself asks for no elevated permissions, so it does not cause this. If you
+wrote your own extension and hit it, check whether it declares
+`onPermissionRequest`: that alone is what triggers the request.
 
 Then check which providers are active:
 

@@ -7,7 +7,12 @@
 // Requires Copilot CLI started with --experimental (or `experimental: true` in
 // settings): extensions are gated behind that flag.
 
-import { approveAll } from '@github/copilot-sdk';
+// Deliberately no `onPermissionRequest`: declaring it makes the CLI ask the user
+// for elevated permissions ("this extension wants to: handle permission requests")
+// before it will load the extension. Until that prompt is answered the CLI stays
+// on "still waiting on extensions" and, crucially, the /model picker comes up
+// empty — so a command meant to help configure models would hide them instead.
+// /byok only reads its own config and prompts for a key: it needs no such power.
 import { joinSession } from '@github/copilot-sdk/extension';
 
 const PACKAGE_ROOT = '__PACKAGE_ROOT__';
@@ -26,7 +31,6 @@ async function load() {
 }
 
 const session = await joinSession({
-  onPermissionRequest: approveAll,
   tools: [],
   hooks: {},
   commands: [
