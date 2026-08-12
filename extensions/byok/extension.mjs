@@ -12,8 +12,18 @@ import { joinSession } from '@github/copilot-sdk/extension';
 
 const PACKAGE_ROOT = '__PACKAGE_ROOT__';
 
-const { loadConfig, findProvider } = await import(`${PACKAGE_ROOT}/src/config.mjs`);
-const { loadKeys, saveKey, removeKey, keystorePath } = await import(`${PACKAGE_ROOT}/src/keystore.mjs`);
+// The CLI waits for this handshake before it finishes starting up, so nothing may
+// delay it: loading the package's own modules here left Copilot stuck on
+// "waiting on extensions" and its model picker unusable. They are imported lazily,
+// inside the handlers, where a few milliseconds cost nothing.
+let modules;
+async function load() {
+  modules ??= {
+    ...await import(`${PACKAGE_ROOT}/src/config.mjs`),
+    ...await import(`${PACKAGE_ROOT}/src/keystore.mjs`),
+  };
+  return modules;
+}
 
 const session = await joinSession({
   onPermissionRequest: approveAll,
@@ -42,6 +52,7 @@ const session = await joinSession({
 const ENV_PROVIDERS = new Set((process.env.COPILOT_BYOK_ENV_PROVIDERS || '').split(',').filter(Boolean));
 
 async function currentState() {
+  const { loadConfig, loadKeys } = await load();
   const secrets = await loadKeys(process.env);
   const config = await loadConfig({ env: process.env, secrets });
   return { config, secrets };
@@ -87,6 +98,7 @@ async function addProvider() {
     return;
   }
 
+  const { saveKey, keystorePath } = await load();
   await saveKey(provider.id, key.trim(), process.env);
   await session.log(
     `Saved the ${provider.name} key in ${keystorePath(process.env)}.\n` +
@@ -97,6 +109,7 @@ async function addProvider() {
 }
 
 async function removeProvider() {
+  const { findProvider, removeKey } = await load();
   const { config, secrets } = await currentState();
   const stored = Object.keys(secrets);
 
@@ -115,6 +128,7 @@ async function removeProvider() {
 }
 
 async function listProviders() {
+  const { keystorePath } = await load();
   const { config, secrets } = await currentState();
   const lines = configurable(config).map((provider) => `  ${describe(provider, secrets)}`);
   await session.log(`BYOK providers:\n${lines.join('\n')}\n\nKey store: ${keystorePath(process.env)}`);

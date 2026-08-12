@@ -4,6 +4,23 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-08-12
+
+### Fixed
+
+- `copilot-byok extension install` now warns, prominently, that a loaded extension
+  can leave Copilot CLI 1.0.79 stuck on "still waiting on extensions" — and that
+  while it is in that state the `/model` picker stays empty, so BYOK models are not
+  listed at all. Reproduced with an eleven-line extension that does nothing, both
+  with and without the router, so it is a CLI behaviour rather than something
+  `/byok` introduces. The README and the troubleshooting guide lead with the same
+  warning and with the one-line remedy, `copilot-byok extension uninstall`.
+- The extension imports the package's modules lazily instead of before joining the
+  session, so it no longer delays the handshake the CLI waits for.
+
+Managing keys from the terminal with `copilot-byok keys set` is unaffected, and so
+is everything else: the router, the catalog and the picker work as before.
+
 ## [1.0.0] - 2026-08-12
 
 Your provider models now appear inside the Copilot `/model` picker, in the same

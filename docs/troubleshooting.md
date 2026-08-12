@@ -2,7 +2,26 @@
 
 ## No BYOK models appear in `/model`
 
-Check which providers are active:
+**First, check whether the `/byok` extension is installed:**
+
+```sh
+copilot-byok extension status
+```
+
+On Copilot CLI 1.0.79 a loaded extension can leave the CLI stuck on
+`still waiting on extensions`, and while it is in that state the picker stays
+empty regardless of how many providers you configured. The startup line at the
+bottom of the screen gives it away. Remove it and the models come back:
+
+```sh
+copilot-byok extension uninstall
+```
+
+This affects any extension, including an empty one, with or without this router,
+so it is a CLI behaviour rather than something the switcher does. Keys can still
+be managed with `copilot-byok keys set`.
+
+Then check which providers are active:
 
 ```sh
 copilot-byok --list-providers
@@ -131,7 +150,8 @@ copilot-byok: 3 router errors during this session — see ~/.config/copilot-byok
 
 The log records forwarded requests, model injections and errors, with a timestamp
 and the process id. Credentials are never written to it. On Windows it lives in
-`%APPDATA%\copilot-byokouter.log`; `COPILOT_BYOK_LOG` overrides the path, and
+`%APPDATA%\copilot-byok
+outer.log`; `COPILOT_BYOK_LOG` overrides the path, and
 the file is truncated once it passes 2 MB.
 
 To watch events live instead — accepting that the display will be disturbed:

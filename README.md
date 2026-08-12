@@ -161,8 +161,17 @@ Paste the API key for Anthropic: ****
 
 `/byok list` shows the current state and `/byok remove` deletes a stored key.
 
-One honest caveat: Copilot caches its model list for the lifetime of a session,
-so models unlocked by a key added this way appear the **next** time you start
+> [!WARNING]
+> **Known issue on Copilot CLI 1.0.79 — install this only if you need it.**
+> A loaded extension can leave the CLI stuck on `still waiting on extensions`, and
+> while it is in that state the `/model` picker stays empty, so your BYOK models
+> are not listed. Verified with any extension, including an empty one, and with or
+> without this router: it is a CLI behaviour, not something `/byok` causes. If your
+> models vanish from the picker, run `copilot-byok extension uninstall`.
+> Managing keys from the terminal with `copilot-byok keys set` has no such problem.
+
+A second caveat: Copilot caches its model list for the lifetime of a session, so
+models unlocked by a key added this way appear the **next** time you start
 `copilot-byok` — neither reopening the picker nor `/restart` refreshes them.
 
 ## Custom configuration
@@ -236,7 +245,8 @@ The short version: no TLS is intercepted, no certificate authority is installed,
 ## Troubleshooting
 
 Diagnostics go to `~/.config/copilot-byok/router.log`
-(`%APPDATA%\copilot-byokouter.log` on Windows) instead of the screen, which
+(`%APPDATA%\copilot-byok
+outer.log` on Windows) instead of the screen, which
 Copilot's interface owns while it runs. If anything failed, a single line after
 the session tells you how many errors there were and where to read them.
 
