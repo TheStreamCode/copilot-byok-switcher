@@ -13,6 +13,7 @@ import { runCopilotWithRouter, selectActiveProviders, startRouter } from './laun
 import { runKeysCommand } from './keys-command.mjs';
 import { loadKeys } from './keystore.mjs';
 import { runExtensionCommand } from './extension-install.mjs';
+import { createSessionLog } from './session-log.mjs';
 
 const DEFAULT_MODEL_FETCH_TIMEOUT_MS = 10_000;
 const MAX_MODEL_CATALOG_BYTES = 5 * 1024 * 1024;
@@ -77,10 +78,12 @@ async function runRouterMode({ args, config, io }) {
     return runCopilot({ copilotArgs: args.copilotArgs, env: {}, io, dryRun: args.dryRun, native: true, config });
   }
 
+  const sessionLog = createSessionLog(io);
+
   const router = await startRouter({
     providers: config.providers,
     upstreamOrigin: args.upstream || io.env.COPILOT_BYOK_UPSTREAM,
-    onEvent: buildEventLogger(io),
+    onEvent: sessionLog.onEvent,
     // Re-read config and key store so a key added mid-session (via /byok)
     // shows up in the picker without restarting.
     reload: async () => {
@@ -114,6 +117,8 @@ async function runRouterMode({ args, config, io }) {
     return await runCopilotWithRouter({ routerUrl: router.url, copilotArgs, env: {}, config, io });
   } finally {
     await router.close();
+    // Only now is the terminal ours again: Copilot's TUI has released the screen.
+    sessionLog.summarize();
   }
 }
 
@@ -128,15 +133,6 @@ function listProviders({ config, io }) {
 
   io.stdout.write('\n* = usable right now. The others are waiting for the environment variable shown.\n');
   return 0;
-}
-
-function buildEventLogger(io) {
-  return (event) => {
-    if (event.type === 'error') io.stderr.write(`copilot-byok: ${event.message}\n`);
-    if (event.type === 'route' && io.env.COPILOT_BYOK_DEBUG) {
-      io.stderr.write(`copilot-byok: ${event.provider} -> ${event.model}\n`);
-    }
-  };
 }
 
 /** Classic mode: one provider per session, without the GitHub models. */

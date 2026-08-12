@@ -235,6 +235,11 @@ The short version: no TLS is intercepted, no certificate authority is installed,
 
 ## Troubleshooting
 
+Diagnostics go to `~/.config/copilot-byok/router.log`
+(`%APPDATA%\copilot-byokouter.log` on Windows) instead of the screen, which
+Copilot's interface owns while it runs. If anything failed, a single line after
+the session tells you how many errors there were and where to read them.
+
 | Symptom | Cause |
 |---|---|
 | No BYOK models in `/model` | No provider active — run `copilot-byok --list-providers` |

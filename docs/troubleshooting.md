@@ -121,12 +121,24 @@ fail faster.
 
 ## Inspecting what the router does
 
+The router writes what it did to a log rather than to the screen, because Copilot
+draws a full-screen interface and anything printed over it garbles the display.
+If something went wrong you get one line after Copilot exits:
+
+```
+copilot-byok: 3 router errors during this session — see ~/.config/copilot-byok/router.log
+```
+
+The log records forwarded requests, model injections and errors, with a timestamp
+and the process id. Credentials are never written to it. On Windows it lives in
+`%APPDATA%\copilot-byokouter.log`; `COPILOT_BYOK_LOG` overrides the path, and
+the file is truncated once it passes 2 MB.
+
+To watch events live instead — accepting that the display will be disturbed:
+
 ```sh
 COPILOT_BYOK_DEBUG=1 copilot-byok
 ```
-
-Each forwarded request prints the provider and the real model name. Credentials
-are never logged.
 
 ## A corporate proxy is in the way
 
