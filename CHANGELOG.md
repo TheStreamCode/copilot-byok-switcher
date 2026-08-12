@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-08-12
+
 ### Added
 
 - **Reasoning effort per model.** Copilot never forwards its own effort setting to

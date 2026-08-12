@@ -1,5 +1,19 @@
 # Troubleshooting
 
+## `copilot` starts, but without the BYOK models
+
+Plain `copilot` is GitHub's CLI and knows nothing about your providers. Either run
+`copilot-byok`, or install the shim so the short name goes through the router:
+
+```sh
+copilot-byok shim install
+copilot-byok shim status     # confirms the directory is really on PATH
+```
+
+A startup line reading `copilot-byok: added N models from N providers` is the
+quickest way to tell which one you are in. Note that a shell profile alias only
+covers that one shell — the shim works in all of them, which is why it exists.
+
 ## No BYOK models appear in `/model`
 
 **If the startup line says `still waiting on extensions`**, an extension is

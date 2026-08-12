@@ -104,6 +104,26 @@ call tools.
 
 Measured wall-clock for the three configured providers, queried in parallel: 1.2s.
 
+## Reasoning effort
+
+Copilot's own effort setting never reaches a BYOK provider. Verified by pointing
+the router at a provider that records what it receives: the payloads produced
+with `--effort low` and `--effort high` are byte-identical, and contain no
+reasoning field at all. Declaring `reasoning_effort` in a model entry changes only
+whether the CLI accepts the flag — not what it sends.
+
+Providers do accept the parameter when the router adds it, and they do **not** fall
+back on their own. Measured against `zai-org/GLM-5.2-TEE` on Chutes:
+
+| `reasoning_effort` | Result |
+|---|---|
+| `low`, `medium`, `high`, `max` | 200 |
+| `xhigh` | 400 validation error |
+| `banana` (control) | 400 validation error |
+
+So a level that a model does not accept breaks every request to it, which is why
+the router steps the level down until one is accepted and remembers the outcome.
+
 ## End-to-end
 
 Run through the router on Copilot CLI 1.0.79, personal free plan:

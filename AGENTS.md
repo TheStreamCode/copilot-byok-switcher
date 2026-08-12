@@ -54,6 +54,8 @@ src/providers.default.json  Generated catalog — never edit by hand, run npm ru
 src/keystore.mjs          Optional on-disk key store (0600 / owner-only ACL)
 src/keys-command.mjs      `copilot-byok keys ...`
 src/extension-install.mjs `copilot-byok extension ...`; rewrites the template's package root
+src/shim-install.mjs      `copilot-byok shim ...`; writes the per-platform `copilot` shim
+src/session-log.mjs       Router diagnostics to a file, never over Copilot's TUI
 src/copilot-bin.mjs       Resolves the Copilot executable, skipping the stale VS Code shim
 src/model-ranking.mjs     Pure ranking of provider model catalogs (legacy mode)
 src/process-env.mjs       Strips stale/secret variables from the child environment

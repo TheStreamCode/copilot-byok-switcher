@@ -30,6 +30,14 @@ Router mode relies on `COPILOT_API_URL`, an environment variable that Copilot CL
 - Requests that are not for a BYOK model are forwarded to GitHub unchanged.
 - Because the variable is undocumented, a Copilot CLI update may change or remove it. If that happens the router stops receiving traffic; `--native` and `--legacy` remain available.
 
+## The shim
+
+`copilot-byok shim install` writes a small `copilot` launcher into a per-user
+directory and tells you to put that directory first on PATH. Nothing is done to
+PATH automatically, and the original CLI is neither moved nor modified: the shim
+simply runs earlier and hands the real path to the launcher. Removing it is
+`copilot-byok shim uninstall` plus undoing the PATH change.
+
 ## Extension
 
 The `/byok` command runs as a Copilot CLI extension, in its own process, and is installed only when you run `copilot-byok extension install`. It receives the ids of the providers configured through environment variables — never their values — so it can report their state.
