@@ -136,6 +136,18 @@ curl http://127.0.0.1:11434/v1/models    # Ollama
 curl http://127.0.0.1:1234/v1/models     # LM Studio
 ```
 
+## Setting the reasoning effort has no effect
+
+Copilot's `--effort` flag and its effort selector do not reach BYOK providers —
+the level never leaves the CLI. Set it per model instead:
+
+```json
+{ "model": "deepseek-reasoner", "reasoningEffort": "high" }
+```
+
+If a model rejects that level the router steps down automatically and says so in
+the log, so a wrong value degrades rather than breaking every request.
+
 ## A request hangs
 
 The router gives up on a provider that accepts the connection and then sends

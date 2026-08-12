@@ -136,12 +136,35 @@ export function mergeModels(payload, entries) {
 
 // ------------------------------------------------------------ forward to a provider
 
+// Providers reject an unsupported level outright — GLM-5.2 answers 400 to
+// `xhigh` while accepting `max` — and there is no server-side fallback. The level
+// is stepped down until one is accepted, and the outcome is remembered so the
+// same round trip is not repeated for the rest of the session.
+const EFFORT_LADDER = ['max', 'xhigh', 'high', 'medium', 'low', 'minimal', 'none'];
+const rejectedEfforts = new Map();
+
+function nextEffortDown(effort) {
+  const index = EFFORT_LADDER.indexOf(effort);
+  return index === -1 || index === EFFORT_LADDER.length - 1 ? null : EFFORT_LADDER[index + 1];
+}
+
 function forwardToProvider({ req, res, payload, route, onEvent }) {
   const { provider, model } = route;
   const target = new URL(`${provider.baseUrl.replace(/\/$/, '')}/chat/completions`);
   const client = target.protocol === 'https:' ? https : http;
 
   const outbound = { ...payload, model: model.model };
+
+  // Copilot accepts a reasoning effort but never forwards it to a BYOK provider —
+  // requests sent with low and high are identical on the wire. Applying the
+  // configured level here is what makes the setting take effect at all.
+  const configured = model.reasoningEffort || provider.reasoningEffort;
+  if (configured && outbound.reasoning_effort === undefined) {
+    const rejected = rejectedEfforts.get(`${provider.id}:${model.model}`) || new Set();
+    let effort = configured;
+    while (effort && rejected.has(effort)) effort = nextEffortDown(effort);
+    if (effort) outbound.reasoning_effort = effort;
+  }
   const body = Buffer.from(JSON.stringify(outbound), 'utf8');
 
   const headers = {
@@ -166,6 +189,26 @@ function forwardToProvider({ req, res, payload, route, onEvent }) {
       headers,
     },
     (providerRes) => {
+      // A 400 caused by the effort is recoverable: drop a level and try again,
+      // before a single byte has reached the client.
+      if (providerRes.statusCode === 400 && outbound.reasoning_effort) {
+        const key = `${provider.id}:${model.model}`;
+        const rejected = rejectedEfforts.get(key) || new Set();
+        rejected.add(outbound.reasoning_effort);
+        rejectedEfforts.set(key, rejected);
+
+        const fallback = nextEffortDown(outbound.reasoning_effort);
+        onEvent({
+          type: 'notice',
+          provider: provider.id,
+          message: `${model.model} rejected reasoning effort "${outbound.reasoning_effort}"`
+            + (fallback ? `, retrying with "${fallback}"` : ', retrying without it'),
+        });
+
+        providerRes.resume(); // discard the error body
+        return forwardToProvider({ req, res, payload, route, onEvent });
+      }
+
       res.writeHead(providerRes.statusCode, providerRes.headers);
       providerRes.pipe(res); // SSE streaming passes through untouched
       // pipe() does not end the destination when the source fails, and an

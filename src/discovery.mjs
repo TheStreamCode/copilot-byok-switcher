@@ -153,6 +153,27 @@ export function declaresToolSupport(entry) {
 }
 
 /** Reads the context window under any of the names providers actually use. */
+/**
+ * Whether the model reasons before answering. Copilot only shows its effort
+ * selector for models that say so, and only then does it forward the level.
+ */
+export function declaresReasoning(entry) {
+  if (!entry || typeof entry !== 'object') return false;
+
+  for (const field of ['supported_features', 'supported_parameters', 'features']) {
+    const value = entry[field];
+    if (Array.isArray(value)) {
+      if (value.some((item) => /^(reasoning|include_reasoning|reasoning_effort|thinking)$/i.test(String(item)))) {
+        return true;
+      }
+    }
+  }
+
+  if (entry.reasoning === true) return true;
+  const supports = entry.capabilities?.supports || entry.capabilities;
+  return Boolean(supports?.reasoning || supports?.reasoning_effort);
+}
+
 export function readContextWindow(entry) {
   return firstPositive(
     entry?.context_length,
@@ -184,6 +205,7 @@ function mergeWithCurated(id, entry, curated, provider) {
     label: known?.label || `${entry?.name || prettifyId(id)} (${provider.name})`,
     ...(context ? { contextWindow: context } : {}),
     ...(output ? { maxOutputTokens: output } : {}),
+    ...(declaresReasoning(entry) || known?.reasoning ? { reasoning: true } : {}),
   };
 }
 

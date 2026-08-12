@@ -193,6 +193,30 @@ One caveat: Copilot caches its model list for the lifetime of a session, so
 models unlocked by a key added this way appear the **next** time you start
 `copilot-byok` — neither reopening the picker nor `/restart` refreshes them.
 
+## Reasoning effort
+
+Copilot's own `--effort` setting does not reach BYOK providers: requests sent with
+`low` and with `high` are byte-identical on the wire (verified against a recording
+provider). So the level is set per model instead, and the router applies it:
+
+```json
+{ "model": "deepseek-reasoner", "reasoningEffort": "high" }
+```
+
+`reasoningEffort` also works at provider level as a default. Accepted values are
+the ones Copilot itself uses: `none`, `minimal`, `low`, `medium`, `high`, `xhigh`,
+`max`.
+
+**Levels differ per model and providers do not fall back.** GLM-5.2 accepts `max`
+but answers `400` to `xhigh`; a rejected level would otherwise break every request
+to that model. The router steps down one level at a time until one is accepted,
+records what happened in the log, and remembers it so the next call goes straight
+to the level that works:
+
+```
+notice: chutes: zai-org/GLM-5.2-TEE rejected reasoning effort "xhigh", retrying with "high"
+```
+
 ## Custom configuration
 
 To use different models, an internal gateway, or a local runtime, write your own config:

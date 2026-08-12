@@ -180,6 +180,28 @@
           "additionalProperties": {
             "type": "string"
           }
+        },
+        "reasoningEffort": {
+          "type": "string",
+          "enum": [
+            "none",
+            "minimal",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "description": "Default reasoning effort for every model of this provider; a model-level value wins."
+        },
+        "discover": {
+          "type": "boolean",
+          "description": "false disables asking this provider for its live model list."
+        },
+        "maxDiscoveredModels": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "How many discovered models this provider may contribute (default 12)."
         }
       },
       "additionalProperties": true,
@@ -232,10 +254,28 @@
           "description": "Maximum output tokens."
         },
         "reasoning": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "Whether the model reasons before answering."
         },
         "vision": {
           "type": "boolean"
+        },
+        "reasoningEffort": {
+          "type": "string",
+          "enum": [
+            "none",
+            "minimal",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "description": "Reasoning effort sent to the provider. Copilot does not forward its own setting to BYOK models, so this is what actually takes effect. Levels differ per model; an unsupported one is stepped down automatically."
+        },
+        "family": {
+          "type": "string",
+          "description": "Well-known model family, used by Copilot for model-specific handling."
         }
       },
       "additionalProperties": true

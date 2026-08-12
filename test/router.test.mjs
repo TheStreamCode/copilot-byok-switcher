@@ -231,3 +231,151 @@ test('custom provider headers cannot override host or content-length', async () 
     await new Promise((resolve) => provider.close(resolve));
   }
 });
+
+test('the configured reasoning effort is applied to the provider request', async () => {
+  let seen;
+  const provider = http.createServer((req, res) => {
+    let body = '';
+    req.on('data', (chunk) => { body += chunk; });
+    req.on('end', () => {
+      seen = JSON.parse(body);
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end('{}');
+    });
+  });
+  await new Promise((resolve) => provider.listen(0, '127.0.0.1', resolve));
+  const port = provider.address().port;
+
+  const catalog = buildCatalog([{
+    id: 'acme',
+    name: 'Acme',
+    baseUrl: `http://127.0.0.1:${port}/v1`,
+    apiKey: 'k',
+    models: [
+      { model: 'thinker', reasoningEffort: 'xhigh' },
+      { model: 'plain' },
+    ],
+  }]);
+
+  const router = createRouter({
+    catalog,
+    upstream: createUpstreamResolver({ explicit: 'https://upstream.invalid' }),
+  });
+  await new Promise((resolve) => router.listen(0, '127.0.0.1', resolve));
+  const url = `http://127.0.0.1:${router.address().port}/chat/completions`;
+
+  try {
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model: 'byok-acme-thinker', messages: [] }),
+    });
+    assert.equal(seen.reasoning_effort, 'xhigh', 'each model carries its own level');
+
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model: 'byok-acme-plain', messages: [] }),
+    });
+    assert.equal(seen.reasoning_effort, undefined, 'models without a level are untouched');
+  } finally {
+    router.closeAllConnections();
+    await new Promise((resolve) => router.close(resolve));
+    await new Promise((resolve) => provider.close(resolve));
+  }
+});
+
+test('an effort already present in the request is not overwritten', async () => {
+  let seen;
+  const provider = http.createServer((req, res) => {
+    let body = '';
+    req.on('data', (chunk) => { body += chunk; });
+    req.on('end', () => { seen = JSON.parse(body); res.writeHead(200).end('{}'); });
+  });
+  await new Promise((resolve) => provider.listen(0, '127.0.0.1', resolve));
+
+  const catalog = buildCatalog([{
+    id: 'acme', name: 'Acme', baseUrl: `http://127.0.0.1:${provider.address().port}/v1`,
+    apiKey: 'k', models: [{ model: 'thinker', reasoningEffort: 'low' }],
+  }]);
+
+  const router = createRouter({
+    catalog,
+    upstream: createUpstreamResolver({ explicit: 'https://upstream.invalid' }),
+  });
+  await new Promise((resolve) => router.listen(0, '127.0.0.1', resolve));
+
+  try {
+    await fetch(`http://127.0.0.1:${router.address().port}/chat/completions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model: 'byok-acme-thinker', messages: [], reasoning_effort: 'max' }),
+    });
+
+    assert.equal(seen.reasoning_effort, 'max', 'a caller that asked explicitly wins');
+  } finally {
+    router.closeAllConnections();
+    await new Promise((resolve) => router.close(resolve));
+    await new Promise((resolve) => provider.close(resolve));
+  }
+});
+
+test('an unsupported effort steps down instead of failing the request', async () => {
+  const attempts = [];
+  const provider = http.createServer((req, res) => {
+    let body = '';
+    req.on('data', (chunk) => { body += chunk; });
+    req.on('end', () => {
+      const parsed = JSON.parse(body);
+      attempts.push(parsed.reasoning_effort);
+      // Mirrors GLM-5.2: xhigh is rejected, high is fine.
+      if (parsed.reasoning_effort === 'xhigh') {
+        res.writeHead(400, { 'content-type': 'application/json' });
+        return res.end(JSON.stringify({ detail: 'Invalid request: reasoning_effort' }));
+      }
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ ok: true }));
+    });
+  });
+  await new Promise((resolve) => provider.listen(0, '127.0.0.1', resolve));
+
+  const events = [];
+  const catalog = buildCatalog([{
+    id: 'acme', name: 'Acme', baseUrl: `http://127.0.0.1:${provider.address().port}/v1`,
+    apiKey: 'k', models: [{ model: 'thinker', reasoningEffort: 'xhigh' }],
+  }]);
+
+  const router = createRouter({
+    catalog,
+    upstream: createUpstreamResolver({ explicit: 'https://upstream.invalid' }),
+    onEvent: (event) => events.push(event),
+  });
+  await new Promise((resolve) => router.listen(0, '127.0.0.1', resolve));
+  const url = `http://127.0.0.1:${router.address().port}/chat/completions`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model: 'byok-acme-thinker', messages: [] }),
+    });
+
+    assert.equal(response.status, 200, 'the client sees a working request');
+    assert.deepEqual(attempts, ['xhigh', 'high'], 'stepped down one level');
+    const notice = events.find((event) => /rejected reasoning effort/.test(event.message || ''));
+    assert.match(notice.message, /"xhigh".*retrying with "high"/);
+
+    // The rejection is remembered: the next call starts at the level that worked.
+    attempts.length = 0;
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model: 'byok-acme-thinker', messages: [] }),
+    });
+    assert.deepEqual(attempts, ['high'], 'no wasted round trip on the rejected level');
+  } finally {
+    router.closeAllConnections();
+    await new Promise((resolve) => router.close(resolve));
+    await new Promise((resolve) => provider.close(resolve));
+  }
+});

@@ -68,23 +68,22 @@ export async function main(argv = process.argv.slice(2), io = defaultIo()) {
 
 /** Default mode: BYOK models show up in the /model picker next to the GitHub ones. */
 async function runRouterMode({ args, config, io }) {
-  const active = selectActiveProviders(config.providers);
+  const sessionLog = createSessionLog(io);
 
-  if (active.length === 0) {
+  // Discovery has to run before deciding whether anything is usable: a provider
+  // that ships no curated models — OpenRouter, Cerebras and the rest — only gains
+  // them here, and checking first would discard it while it holds a valid key.
+  const providers = args.noDiscovery
+    ? config.providers
+    : await resolveLiveModels(config.providers, { onEvent: sessionLog.onEvent });
+
+  if (selectActiveProviders(providers).length === 0) {
     io.stderr.write(
       'No BYOK provider configured: starting Copilot with GitHub models only.\n' +
       'Run "copilot-byok --list-providers" to see which environment variables to set.\n\n'
     );
     return runCopilot({ copilotArgs: args.copilotArgs, env: {}, io, dryRun: args.dryRun, native: true, config });
   }
-
-  const sessionLog = createSessionLog(io);
-
-  // Ask the active providers what they serve right now, so the picker reflects
-  // today's models rather than whatever was curated at release time.
-  const providers = args.noDiscovery
-    ? config.providers
-    : await resolveLiveModels(config.providers, { onEvent: sessionLog.onEvent });
 
   const router = await startRouter({
     providers,

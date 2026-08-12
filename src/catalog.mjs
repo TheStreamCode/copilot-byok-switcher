@@ -70,7 +70,7 @@ function buildEntry({ id, provider, model }) {
     model_picker_price_category: 'low',
     supported_endpoints: ['/chat/completions'],
     capabilities: {
-      family: id,
+      family: model.family || id,
       object: 'model_capabilities',
       type: 'chat',
       tokenizer: 'o200k_base',
@@ -86,6 +86,11 @@ function buildEntry({ id, provider, model }) {
         parallel_tool_calls: true,
         structured_outputs: true,
         ...(model.vision ? { vision: true } : {}),
+        // No `reasoning_effort` here on purpose. Declaring it makes Copilot show
+        // its effort selector, but the chosen level never reaches a BYOK provider:
+        // payloads sent with --effort low and --effort high are byte-identical
+        // (verified against a recording provider). The level is applied by the
+        // router instead, from `reasoningEffort` in the provider config.
       },
     },
   };

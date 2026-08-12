@@ -58,6 +58,9 @@ export function createSessionLog(io) {
       if (event.type === 'error') {
         errors += 1;
         write(`error: ${event.provider ? `${event.provider}: ` : ''}${event.message}`);
+      } else if (event.type === 'notice') {
+        // Something adapted rather than failed: worth recording, not worth alarming.
+        write(`notice: ${event.provider ? `${event.provider}: ` : ''}${event.message}`);
       } else if (event.type === 'route') {
         write(`route: ${event.provider} -> ${event.model}`);
       } else if (event.type === 'models') {

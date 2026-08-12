@@ -149,6 +149,7 @@ function normalizeModels(value, providerName) {
     if (!isRecord(entry)) throw new Error(`${where} must be a string or an object`);
 
     const model = requiredString(entry.model, `${where} requires a model name`);
+    if (entry.reasoningEffort != null) validateEffort(entry.reasoningEffort, where);
     for (const field of ['contextWindow', 'maxOutputTokens']) {
       if (entry[field] != null && (!Number.isInteger(entry[field]) || entry[field] <= 0)) {
         throw new Error(`${where} ${field} must be a positive integer`);
@@ -160,7 +161,19 @@ function normalizeModels(value, providerName) {
   });
 }
 
+const REASONING_EFFORTS = new Set(['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']);
+
+/** The levels Copilot itself accepts; passed through to the provider verbatim. */
+function validateEffort(value, where) {
+  const effort = requiredString(value, `${where} reasoningEffort must be a non-empty string`).toLowerCase();
+  if (!REASONING_EFFORTS.has(effort)) {
+    throw new Error(`${where} reasoningEffort must be one of: ${[...REASONING_EFFORTS].join(', ')}`);
+  }
+  return effort;
+}
+
 function validateProviderOptions(provider, name, type) {
+  if (provider.reasoningEffort != null) validateEffort(provider.reasoningEffort, `Provider ${name}`);
   for (const field of ['catalogModelId', 'defaultModel']) {
     if (provider[field] != null) requiredString(provider[field], `Provider ${name} ${field} must be a non-empty string`);
   }

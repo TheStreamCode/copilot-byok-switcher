@@ -4,6 +4,24 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **Reasoning effort per model.** Copilot never forwards its own effort setting to
+  a BYOK provider — requests made with `low` and with `high` are byte-identical on
+  the wire — so `reasoningEffort` on a model (or provider) is what actually takes
+  effect: the router adds it to the outgoing request.
+- Levels differ per model and providers do not fall back on their own: GLM-5.2
+  accepts `max` yet answers `400` to `xhigh`. The router steps the level down until
+  one is accepted, logs the adjustment, and remembers it for the rest of the
+  session so no round trip is wasted twice.
+- Discovery now records whether a model reasons, from the provider's own metadata.
+
+### Fixed
+
+- A provider that ships no curated models could never activate: the check for
+  usable providers ran before discovery, discarding exactly the providers that
+  gain their models from it. This undid part of what 1.1.0 promised.
+
 ## [1.1.0] - 2026-08-12
 
 ### Added

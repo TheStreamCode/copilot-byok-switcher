@@ -1,0 +1,1 @@
+{"providers":[{"id":"echo","name":"Echo","baseUrl":"http://127.0.0.1:8901/v1","modelsUrl":"http://127.0.0.1:8901/v1/models","authRequired":false,"models":[]}]}
