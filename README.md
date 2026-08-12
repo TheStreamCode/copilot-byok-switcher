@@ -126,15 +126,41 @@ Either way the keys stay out of the Copilot process: the router uses them in its
 
 Some entries ship without a preset model list, either because their model names are account-specific (Volcengine endpoint ids) or because the catalog is too large to curate (OpenRouter). Add the ones you want in your own config — see below.
 
-### Model metadata
+### Where the model list comes from
 
-Context windows and capabilities come from [models.dev](https://models.dev) and are refreshed with:
+**Providers are asked directly.** At startup each configured provider is queried
+for the models it serves right now, so the picker shows today's line-up rather
+than whatever was curated at release time — a model released this morning is
+there this morning. All 30 providers were verified to expose an OpenAI-style
+`GET /models`; the ones that also publish capabilities (Chutes, OpenRouter and
+others) supply the real context window, output limit and tool-calling support
+along with it.
+
+Only the providers you have a key for are queried, in parallel, with a hard
+timeout. Measured on three configured providers: about a second. Results are
+cached for ten minutes, failures for one.
+
+Anything the provider does not report is filled in from the shipped catalog,
+which is generated from [models.dev](https://models.dev) and refreshed with:
 
 ```sh
 npm run catalog:update
 ```
 
-This matters for correctness, not just tidiness: Copilot's harness trusts what a model entry declares. Only models that report tool-calling support are published, because an agent that cannot call tools breaks halfway through a session rather than failing cleanly.
+That catalog also serves as the fallback: if a provider is unreachable, slow or
+rejects the key, its curated list is used instead — a network hiccup never
+empties the picker. To skip discovery entirely and always use the shipped lists:
+
+```sh
+copilot-byok --no-discovery
+```
+
+Models that cannot call tools are excluded, whether that is known from the
+provider's own metadata or from the catalog: Copilot's harness trusts what a
+model entry declares, and an agent that cannot call tools breaks halfway through
+a session instead of failing cleanly. Embedding, image, audio and moderation
+models are filtered out for the same reason. Each provider contributes at most
+twelve models, so a catalog like OpenRouter's 400+ cannot swamp the picker.
 
 ## The /byok command
 

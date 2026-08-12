@@ -4,6 +4,28 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **The model list now comes from the providers themselves.** At startup each
+  configured provider is asked what it currently serves, so the picker reflects
+  today's line-up instead of a list curated at release time. All 30 catalog
+  providers were verified to expose an OpenAI-style `GET /models`; those that also
+  publish capabilities supply the real context window, output limit and
+  tool-calling flag with it.
+- Only providers you hold a key for are queried, in parallel, with a bounded
+  timeout — about a second for three configured providers. Successful results are
+  cached for ten minutes, failures for one, so a momentary outage is retried soon
+  while a healthy catalog is not re-fetched on every rebuild.
+- Providers that ship without a curated list (OpenRouter, Cerebras, Together,
+  SiliconFlow and the rest) become usable the moment you add their key.
+- `--no-discovery` keeps the shipped lists for anyone who prefers a fixed set.
+
+Discovery never empties the picker: an unreachable provider, a rejected key or an
+empty response all fall back to the shipped catalog, and the router log records
+which provider fell back and why. Models that cannot call tools are still
+excluded, and each provider contributes at most twelve entries so a 400-model
+catalog cannot swamp the list.
+
 ## [1.0.1] - 2026-08-12
 
 ### Fixed

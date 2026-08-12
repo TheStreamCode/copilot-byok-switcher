@@ -48,6 +48,7 @@ src/router.mjs            The local proxy: model injection, provider routing, pa
 src/catalog.mjs           Turns providers into the model entries Copilot expects from GET /models
 src/launcher.mjs          Starts the router on an ephemeral port and spawns Copilot against it
 src/upstream.mjs          Resolves the Copilot API tier (individual / business / enterprise)
+src/discovery.mjs         Asks each provider for its live model list; falls back to the catalog
 src/config.mjs            Provider config loading and validation; loads providers.default.json
 src/providers.default.json  Generated catalog — never edit by hand, run npm run catalog:update
 src/keystore.mjs          Optional on-disk key store (0600 / owner-only ACL)

@@ -12,6 +12,7 @@ export function parseArgs(argv) {
     version: false,
     legacy: false,
     listProviders: false,
+    noDiscovery: false,
     upstream: null,
     copilotArgs: [],
   };
@@ -43,6 +44,12 @@ export function parseArgs(argv) {
     // router and no GitHub models in the same list.
     if (arg === '--legacy' || arg === '--single-provider') {
       result.legacy = true;
+      continue;
+    }
+
+    // Skip asking providers for their catalogs and use the shipped lists instead.
+    if (arg === '--no-discovery') {
+      result.noDiscovery = true;
       continue;
     }
 

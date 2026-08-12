@@ -9,7 +9,7 @@ import { findProvider, loadConfig } from './config.mjs';
 import { rankModels } from './model-ranking.mjs';
 import { buildProviderEnvironment } from './provider-env.mjs';
 import { sanitizeCopilotEnvironment } from './process-env.mjs';
-import { runCopilotWithRouter, selectActiveProviders, startRouter } from './launcher.mjs';
+import { resolveLiveModels, runCopilotWithRouter, selectActiveProviders, startRouter } from './launcher.mjs';
 import { runKeysCommand } from './keys-command.mjs';
 import { loadKeys } from './keystore.mjs';
 import { runExtensionCommand } from './extension-install.mjs';
@@ -80,8 +80,14 @@ async function runRouterMode({ args, config, io }) {
 
   const sessionLog = createSessionLog(io);
 
+  // Ask the active providers what they serve right now, so the picker reflects
+  // today's models rather than whatever was curated at release time.
+  const providers = args.noDiscovery
+    ? config.providers
+    : await resolveLiveModels(config.providers, { onEvent: sessionLog.onEvent });
+
   const router = await startRouter({
-    providers: config.providers,
+    providers,
     upstreamOrigin: args.upstream || io.env.COPILOT_BYOK_UPSTREAM,
     onEvent: sessionLog.onEvent,
     // Re-read config and key store so a key added mid-session (via /byok)
@@ -89,7 +95,11 @@ async function runRouterMode({ args, config, io }) {
     reload: async () => {
       const secrets = await loadKeys(io.env);
       const fresh = await loadConfig({ configPath: args.configPath, env: io.env, secrets });
-      return fresh.providers;
+      // A key added mid-session belongs to a provider that was not queried at
+      // startup, so its models are discovered on the next rebuild.
+      return args.noDiscovery
+        ? fresh.providers
+        : resolveLiveModels(fresh.providers, { onEvent: sessionLog.onEvent });
     },
   });
 
@@ -454,6 +464,7 @@ Options:
   -m, --model <id>          Starting model (picker id, e.g. byok-openai-gpt-5-5)
   -c, --config <path>       Provider configuration file
       --upstream <url>      Force the Copilot API tier (individual/business/enterprise)
+      --no-discovery        Use the shipped model lists instead of asking providers
       --dry-run             Print what would start, then exit
   -h, --help                Show this help
   -v, --version             Print the copilot-byok version

@@ -55,6 +55,21 @@ unaffected — the same session can still use GitHub models.
 
 Check which variable the switcher is reading with `copilot-byok --list-providers`.
 
+## A model I expected is missing from the picker
+
+The list comes from the provider itself. Three things can hide a model:
+
+- **It cannot call tools.** Models whose metadata says so are excluded on purpose;
+  an agent that cannot use tools fails mid-session rather than at startup.
+- **The per-provider cap.** At most twelve models per provider reach the picker,
+  chosen by the same ranking used elsewhere. Raise it with `maxDiscoveredModels`
+  in your config, or pin the exact models you want under `models`.
+- **Discovery fell back.** If the provider was unreachable or rejected the key,
+  the shipped list is used instead; the router log says which and why.
+
+Results are cached for ten minutes, so a model added upstream may take that long
+to appear — restart to pick it up immediately.
+
 ## A provider returns 404 on a model
 
 The model name in your config does not exist upstream. Names drift; list what the
