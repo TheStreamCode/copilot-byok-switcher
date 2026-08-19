@@ -407,4 +407,4 @@ Issues and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+This project is licensed under the [MIT License](LICENSE).
