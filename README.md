@@ -190,9 +190,9 @@ Then `/byok` opens a provider list and asks for the key:
 
 ```
 Choose a provider to configure:
-❯ Anthropic — not configured (4 models)
-  Google Gemini — not configured (3 models)
-  DeepSeek — not configured (4 models)
+❯ Anthropic — not configured
+  Google Gemini — not configured
+  DeepSeek — not configured
   OpenAI — set via environment
   Chutes — set via environment
 

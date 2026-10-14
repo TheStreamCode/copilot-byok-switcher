@@ -32,6 +32,12 @@ All notable changes to this project are documented in this file.
   referencing them need updating; account-specific endpoint ids still work
   through a custom provider entry.
 
+### Fixed
+
+- The `/byok` in-session command lists every provider needing a credential
+  again instead of an empty list, and no longer reports model counts that only
+  exist after discovery.
+
 ## [1.4.2] - 2026-08-12
 
 ### Changed
