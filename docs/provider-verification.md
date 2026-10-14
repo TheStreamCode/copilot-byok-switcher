@@ -64,12 +64,6 @@ before the credential, and the probe deliberately sends a non-existent model:
 | Fireworks AI | `https://api.fireworks.ai/inference/v1` | 404 on an unknown model |
 | Nvidia NIM | `https://integrate.api.nvidia.com/v1` | 404 on an unknown model |
 
-Perplexity, Baichuan and Baseten were probed but are not shipped: Perplexity is
-search-focused rather than coding-oriented, and Baichuan and Baseten are
-unverified for coding use. StepFun, Doubao, Hunyuan and Qianfan were removed
-from the catalog for the same reason — the catalog keeps only coding-oriented
-frontier providers.
-
 ## Model-list endpoints
 
 Discovery reads each provider's `GET /models`, so that route was probed for every
