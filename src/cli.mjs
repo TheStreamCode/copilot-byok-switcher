@@ -9,7 +9,8 @@ import { findProvider, loadConfig } from './config.mjs';
 import { rankModels } from './model-ranking.mjs';
 import { buildProviderEnvironment } from './provider-env.mjs';
 import { sanitizeCopilotEnvironment } from './process-env.mjs';
-import { isQueryable, resolveLiveModels, runCopilotWithRouter, selectActiveProviders, startRouter } from './launcher.mjs';
+import { isQueryable, resolveLiveModels, resolveOfflineModels, runCopilotWithRouter, selectActiveProviders, startRouter } from './launcher.mjs';
+import { readCache, recallModels } from './model-cache.mjs';
 import { runKeysCommand } from './keys-command.mjs';
 import { loadKeys } from './keystore.mjs';
 import { runExtensionCommand } from './extension-install.mjs';
@@ -62,7 +63,7 @@ export async function main(argv = process.argv.slice(2), io = defaultIo()) {
 
   if (args.listProviders) {
     const config = await loadConfig({ configPath: args.configPath, env: io.env, secrets });
-    return listProviders({ config, io });
+    return await listProviders({ config, io });
   }
 
   if (!args.legacy) {
@@ -77,11 +78,11 @@ export async function main(argv = process.argv.slice(2), io = defaultIo()) {
 async function runRouterMode({ args, config, io }) {
   const sessionLog = createSessionLog(io);
 
-  // Discovery has to run before deciding whether anything is usable: a provider
-  // that ships no curated models — OpenRouter, Cerebras and the rest — only gains
-  // them here, and checking first would discard it while it holds a valid key.
+  // Discovery has to run before deciding whether anything is usable: providers
+  // ship no model lists, so a keyed provider only gains its models here, and
+  // checking first would discard it while it holds a valid key.
   const providers = args.noDiscovery
-    ? config.providers
+    ? await resolveOfflineModels(config.providers, { env: io.env })
     : await discoverWithProgress({ config, io, sessionLog });
 
   if (selectActiveProviders(providers).length === 0) {
@@ -104,7 +105,7 @@ async function runRouterMode({ args, config, io }) {
       // A key added mid-session belongs to a provider that was not queried at
       // startup, so its models are discovered on the next rebuild.
       return args.noDiscovery
-        ? fresh.providers
+        ? resolveOfflineModels(fresh.providers, { env: io.env })
         : resolveLiveModels(fresh.providers, { onEvent: sessionLog.onEvent });
     },
   });
@@ -161,16 +162,17 @@ async function discoverWithProgress({ config, io, sessionLog }) {
   }
 }
 
-function listProviders({ config, io }) {
-  const active = new Set(selectActiveProviders(config.providers).map((provider) => provider.id));
+async function listProviders({ config, io }) {
+  const diskCache = await readCache(io.env).catch(() => ({}));
 
   for (const provider of config.providers) {
-    const usable = active.has(provider.id);
+    const usable = isQueryable(provider);
+    const known = provider.models?.length || recallModels(diskCache, provider.id, Date.now)?.length || 0;
     const keys = (provider.apiKeyEnv || []).join(' | ') || (provider.authRequired === false ? 'no key needed' : '-');
-    io.stdout.write(`${usable ? '*' : ' '} ${provider.id.padEnd(20)} ${String(provider.models?.length || 0).padStart(2)} models  ${keys}\n`);
+    io.stdout.write(`${usable ? '*' : ' '} ${provider.id.padEnd(20)} ${String(known).padStart(2)} models  ${keys}\n`);
   }
 
-  io.stdout.write('\n* = usable right now. The others are waiting for the environment variable shown.\n');
+  io.stdout.write('\n* = key configured; live model lists load at startup. Counts show pinned or remembered lists.\n');
   return 0;
 }
 
@@ -493,7 +495,7 @@ Options:
   -m, --model <id>          Starting model (picker id, e.g. byok-openai-gpt-5-5)
   -c, --config <path>       Provider configuration file
       --upstream <url>      Force the Copilot API tier (individual/business/enterprise)
-      --no-discovery        Use the shipped model lists instead of asking providers
+      --no-discovery        Skip live discovery; use pinned or remembered lists (offline mode)
       --dry-run             Print what would start, then exit
   -h, --help                Show this help
   -v, --version             Print the copilot-byok version

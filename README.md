@@ -100,18 +100,18 @@ Every provider below is reached through its OpenAI-compatible endpoint, verified
 |---|---|---|---|
 | OpenAI | `OPENAI_API_KEY` | DeepSeek | `DEEPSEEK_API_KEY` |
 | Anthropic | `ANTHROPIC_API_KEY` | Alibaba Qwen | `DASHSCOPE_API_KEY` |
-| Google Gemini | `GEMINI_API_KEY` | Z.AI GLM | `ZAI_API_KEY` |
-| xAI Grok | `XAI_API_KEY` | Zhipu AI (CN) | `ZHIPU_CN_API_KEY` |
-| Mistral | `MISTRAL_API_KEY` | Moonshot Kimi | `MOONSHOT_API_KEY` |
-| Groq | `GROQ_API_KEY` | MiniMax | `MINIMAX_API_KEY` |
-| Cerebras | `CEREBRAS_API_KEY` | StepFun | `STEPFUN_API_KEY` |
-| Together AI | `TOGETHER_API_KEY` | ByteDance Doubao | `ARK_API_KEY` |
-| DeepInfra | `DEEPINFRA_API_KEY` | Tencent Hunyuan | `HUNYUAN_API_KEY` |
-| Fireworks AI | `FIREWORKS_API_KEY` | Baidu Qianfan | `QIANFAN_API_KEY` |
-| OpenRouter | `OPENROUTER_API_KEY` | SiliconFlow | `SILICONFLOW_API_KEY` |
-| Chutes | `CHUTES_API_KEY` | ModelScope | `MODELSCOPE_API_KEY` |
-| OpenCode Zen | `OPENCODE_ZEN_API_KEY` | Alibaba Token Plan | `ALIBABA_TOKEN_PLAN_API_KEY` |
-| OpenCode Go | `OPENCODE_GO_API_KEY` | Ollama / LM Studio | no key needed |
+| Google Gemini | `GEMINI_API_KEY` | Alibaba Qwen (CN) | `DASHSCOPE_API_KEY_CN` |
+| xAI Grok | `XAI_API_KEY` | Z.AI GLM | `ZAI_API_KEY` |
+| Mistral | `MISTRAL_API_KEY` | Zhipu AI (CN) | `ZHIPU_CN_API_KEY` |
+| Meta Muse | `MODEL_API_KEY` | Moonshot Kimi | `MOONSHOT_API_KEY` |
+| NVIDIA NIM | `NVIDIA_API_KEY` | MiniMax | `MINIMAX_API_KEY` |
+| Groq | `GROQ_API_KEY` | SiliconFlow | `SILICONFLOW_API_KEY` |
+| Cerebras | `CEREBRAS_API_KEY` | ModelScope | `MODELSCOPE_API_KEY` |
+| Together AI | `TOGETHER_API_KEY` | OpenRouter | `OPENROUTER_API_KEY` |
+| DeepInfra | `DEEPINFRA_API_KEY` | Chutes | `CHUTES_API_KEY` |
+| Fireworks AI | `FIREWORKS_API_KEY` | OpenCode Zen | `OPENCODE_ZEN_API_KEY` |
+| Alibaba Token Plan | `ALIBABA_TOKEN_PLAN_API_KEY` | OpenCode Go | `OPENCODE_GO_API_KEY` |
+| Ollama | no key needed | LM Studio | no key needed |
 
 Each provider also accepts a `COPILOT_BYOK_<PROVIDER>_API_KEY` variant, useful when you already use the plain name for something else.
 
@@ -126,17 +126,17 @@ The store lives at `~/.config/copilot-byok/keys.json` (`%APPDATA%\copilot-byok\k
 
 Either way the keys stay out of the Copilot process: the router uses them in its own, and strips them from the environment it hands to the agent.
 
-Some entries ship without a preset model list, either because their model names are account-specific (Volcengine endpoint ids) or because the catalog is too large to curate (OpenRouter). Add the ones you want in your own config — see below.
+No entry ships a model list: the picker is filled by live discovery. To pin exact models instead — for an offline setup or a fixed line-up — add them in your own config — see below.
 
 ### Where the model list comes from
 
 **Providers are asked directly.** At startup each configured provider is queried
 for the models it serves right now, so the picker shows today's line-up rather
-than whatever was curated at release time — a model released this morning is
-there this morning. All 30 providers were verified to expose an OpenAI-style
-`GET /models`; the ones that also publish capabilities (Chutes, OpenRouter and
-others) supply the real context window, output limit and tool-calling support
-along with it.
+than whatever was pinned at release time — a model released this morning is
+there this morning. All 28 providers expose an OpenAI-style `GET /models`
+(verified in `docs/provider-verification.md`); the ones that also publish
+capabilities (Chutes, OpenRouter, NIM and others) supply the real context
+window, output limit and tool-calling support along with it.
 
 While this happens the startup shows what it is waiting on, since the pause comes
 before Copilot has drawn anything:
@@ -153,31 +153,28 @@ Only the providers you have a key for are queried, in parallel, with a hard
 timeout. Measured on three configured providers: about a second. Results are
 cached for ten minutes, failures for one.
 
-Anything the provider does not report is filled in from the shipped catalog,
-which is generated from [models.dev](https://models.dev) and refreshed with:
-
-```sh
-npm run catalog:update
-```
+Anything the provider does not report falls back to conservative defaults (128k
+context, 32k output); image input and the reasoning selector appear only when
+the provider's own metadata declares them.
 
 If a request fails — a rate limit, a blip, an expired key — the list that key
 returned last time is used instead, kept in `~/.cache/copilot-byok/models.json`
-(`%LOCALAPPDATA%` on Windows). That matters: the shipped list is generic, while a
-provider's catalog belongs to the plan behind your key, so falling back to it can
-offer models your plan does not include and hide ones it does. Only when nothing
-was ever remembered does the shipped list step in, so a hiccup never empties the
-picker. To skip discovery entirely and always use the shipped lists:
+(`%LOCALAPPDATA%` on Windows). That matters: a provider's catalog belongs to the
+plan behind your key, so only what your key actually returned is ever offered —
+never a generic guess. When nothing was ever remembered, the provider stays out
+of the picker and the log says why. To skip discovery entirely and work from
+remembered lists:
 
 ```sh
 copilot-byok --no-discovery
 ```
 
-Models that cannot call tools are excluded, whether that is known from the
-provider's own metadata or from the catalog: Copilot's harness trusts what a
-model entry declares, and an agent that cannot call tools breaks halfway through
-a session instead of failing cleanly. Embedding, image, audio and moderation
-models are filtered out for the same reason. Each provider contributes at most
-twelve models, so a catalog like OpenRouter's 400+ cannot swamp the picker.
+Models that cannot call tools are excluded based on the provider's own metadata:
+Copilot's harness trusts what a model entry declares, and an agent that cannot
+call tools breaks halfway through a session instead of failing cleanly.
+Embedding, image, audio and moderation models are filtered out for the same
+reason. Each provider contributes at most twelve models, so a catalog like
+OpenRouter's 460+ cannot swamp the picker.
 
 ## The /byok command
 
@@ -356,13 +353,13 @@ Everything has a working default; these are for when you need to change one.
 ### Keeping the catalog honest
 
 ```sh
-npm run catalog:update    # refresh models and limits from models.dev
-npm run catalog:audit     # check every curated model still exists on its provider
+npm run catalog:update    # regenerate the endpoint catalog from scripts/catalog-sources.json
+npm run catalog:audit     # check every provider serves a usable model list
 ```
 
-The audit exits non-zero when a curated entry is not served by its provider.
-Curated lists are only a fallback, but a wrong entry is worse than a missing one:
-it is offered in the picker and fails only when selected.
+The audit queries each provider's live catalog and exits non-zero when one that
+answers yields no usable chat model. Providers that need a key you have not
+configured are reported as unverifiable rather than failing.
 
 ### Single-provider mode
 

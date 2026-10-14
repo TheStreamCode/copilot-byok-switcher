@@ -96,18 +96,16 @@ test('prompt and output budgets fit inside the context window', () => {
   }
 });
 
-test('the shipped catalog never advertises more than a model can hold', async () => {
+test('the generated catalog ships endpoints only, with unique ids', async () => {
   const { readFile } = await import('node:fs/promises');
   const catalog = JSON.parse(await readFile(new URL('../src/providers.default.json', import.meta.url), 'utf8'));
 
-  const providers = catalog.providers
-    .filter((provider) => provider.models.length)
-    .map((provider) => ({ ...provider, apiKey: 'k' }));
+  const ids = catalog.providers.map((provider) => provider.id);
+  assert.equal(new Set(ids).size, ids.length, 'provider ids must be unique');
 
-  for (const entry of buildCatalog(providers).entries) {
-    const { max_prompt_tokens: prompt, max_output_tokens: output, max_context_window_tokens: context } =
-      entry.capabilities.limits;
-    assert.ok(prompt + output <= context, `${entry.id}: ${prompt} + ${output} > ${context}`);
+  for (const provider of catalog.providers) {
+    assert.ok(provider.modelsUrl, `${provider.id} needs a models endpoint`);
+    assert.ok(!provider.models || provider.models.length === 0, `${provider.id} must not ship models`);
   }
 });
 

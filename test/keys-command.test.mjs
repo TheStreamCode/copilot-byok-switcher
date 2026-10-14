@@ -7,6 +7,7 @@ import test from 'node:test';
 
 import { main } from '../src/cli.mjs';
 import { loadKeys, saveKey } from '../src/keystore.mjs';
+import { rememberModels } from '../src/model-cache.mjs';
 
 function captureWritable() {
   const chunks = [];
@@ -114,10 +115,12 @@ test('an unknown keys action fails with guidance', async () => {
 });
 
 test('a stored key activates its provider in the router catalog', async () => {
-  const { io, stdout } = await scratchIo();
+  const cacheDir = await mkdtemp(join(tmpdir(), 'copilot-byok-keys-cache-'));
+  const { io, stdout } = await scratchIo({ env: { COPILOT_BYOK_MODEL_CACHE: join(cacheDir, 'models.json') } });
   await saveKey('deepseek', 'stored-key', io.env);
+  await rememberModels('deepseek', [{ model: 'deepseek-chat', label: 'DeepSeek Chat' }], io.env);
 
-  const exitCode = await main(['--dry-run'], io);
+  const exitCode = await main(['--dry-run', '--no-discovery'], io);
 
   assert.equal(exitCode, 0);
   const report = JSON.parse(stdout.text());

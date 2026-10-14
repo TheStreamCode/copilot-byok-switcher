@@ -1,11 +1,11 @@
 // Remembers the last model list each provider actually returned.
 //
 // When discovery fails — a rate limit, a network blip, an expired key — falling
-// back to the shipped list is misleading: that list is generic, while a provider's
-// catalog is specific to the plan behind the key. It can therefore offer models the
-// user does not have (a Kimi entry on an Alibaba plan that never included it) and
-// omit ones they do. Yesterday's real answer is a far better guess than a generic
-// list, so it is kept on disk and preferred over it.
+// back to a generic list is misleading: a provider's catalog is specific to the
+// plan behind the key, so a generic entry can offer models the user does not have
+// (a Kimi entry on an Alibaba plan that never included it) and omit ones they do.
+// Yesterday's real answer is a far better guess, so it is kept on disk and
+// preferred over any pinned list.
 
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { homedir, platform } from 'node:os';

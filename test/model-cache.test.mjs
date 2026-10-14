@@ -18,7 +18,7 @@ const provider = {
   baseUrl: 'https://api.acme.test/v1',
   modelsUrl: 'https://api.acme.test/v1/models',
   apiKey: 'secret',
-  // The shipped list is generic and may name models this key cannot use.
+  // The pinned list is generic and may name models this key cannot use.
   models: [{ model: 'generic-model', label: 'Generic' }],
 };
 
@@ -52,7 +52,7 @@ test('a stale entry is ignored rather than offered as current', async () => {
   assert.ok(recallModels(cache, 'acme', () => 1000));
 });
 
-test('a failed discovery offers what the key really returned, not the shipped list', async () => {
+test('a failed discovery offers what the key really returned, not the pinned list', async () => {
   const env = await scratchEnv();
   await rememberModels('acme', [{ model: 'yours-1' }, { model: 'yours-2' }], env);
   const diskCache = await readCache(env);
@@ -70,7 +70,7 @@ test('a failed discovery offers what the key really returned, not the shipped li
     'a generic entry could name a model this plan does not include');
 });
 
-test('without a remembered list the shipped one is still used', async () => {
+test('without a remembered list the configured one is still used', async () => {
   const env = await scratchEnv();
 
   const result = await discoverModels(provider, {

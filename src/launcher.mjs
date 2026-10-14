@@ -5,7 +5,7 @@ import spawn from 'cross-spawn';
 
 import { buildCatalog } from './catalog.mjs';
 import { discoverModels } from './discovery.mjs';
-import { readCache } from './model-cache.mjs';
+import { readCache, recallModels } from './model-cache.mjs';
 import { createRouter } from './router.mjs';
 import { createUpstreamResolver } from './upstream.mjs';
 import { resolveCopilotBin } from './copilot-bin.mjs';
@@ -22,9 +22,9 @@ export function selectActiveProviders(providers) {
 }
 
 /**
- * Replaces each provider's shipped model list with what it actually serves right
- * now. Providers are queried in parallel; one that fails keeps its curated list,
- * so a slow or unreachable provider never empties the picker.
+ * Replaces each provider's pinned model list with what it actually serves right
+ * now. Providers are queried in parallel; one that fails falls back to what its
+ * key returned last time, or stays out of the picker when nothing was remembered.
  */
 export async function resolveLiveModels(providers, { onEvent = () => {}, discoverImpl = discoverModels, env = process.env } = {}) {
   const diskCache = await readCache(env).catch(() => ({}));
@@ -42,11 +42,30 @@ export async function resolveLiveModels(providers, { onEvent = () => {}, discove
         message: `model discovery failed (${reason}); using the list this key returned last time`,
       });
     } else if (source === 'catalog' && reason) {
-      onEvent({ type: 'error', provider: provider.id, message: `model discovery fell back to the shipped list: ${reason}` });
+      onEvent({
+        type: 'error',
+        provider: provider.id,
+        message: models.length === 0
+          ? `model discovery failed (${reason}); no remembered models, provider unavailable`
+          : `model discovery failed (${reason}); using its pinned models`,
+      });
     } else {
       onEvent({ type: 'discovery', provider: provider.id, count: models.length, source });
     }
     return { ...provider, models };
+  }));
+}
+
+/**
+ * Offline mode for --no-discovery: no provider is contacted. Each provider
+ * keeps its pinned models, or the list its key returned last time.
+ */
+export async function resolveOfflineModels(providers, { env = process.env, now = Date.now } = {}) {
+  const diskCache = await readCache(env).catch(() => ({}));
+
+  return providers.map((provider) => ({
+    ...provider,
+    models: recallModels(diskCache, provider.id, now) || provider.models || [],
   }));
 }
 

@@ -1,13 +1,3 @@
-const FAMILY_PRIORITIES = [
-  [/minimax/i, 100],
-  [/kimi|moonshot/i, 95],
-  [/deepseek/i, 90],
-  [/qwen/i, 80],
-  [/glm|zai-org/i, 75],
-  [/gpt-oss|gpt/i, 60],
-  [/mistral|mixtral|codestral/i, 50],
-];
-
 const DENY_PATTERNS = [
   /(^|[/_.-])(flux|sdxl|stable-diffusion|diffusion|dall-e|sora|image|video|moderation|realtime)([/_.-]|$)/i,
   /(^|[/_.-])(embedding|embed|rerank|ocr|guard|safeguard|safety|tts|whisper|audio|speech|transcription|computer-use)([/_.-]|$)/i,
@@ -37,7 +27,6 @@ export function rankModels({
       id: entry.id,
       updated: getUpdatedTicks(entry.model),
       created: getCreatedTicks(entry.model),
-      family: getFamilyPriority(entry.id),
       version: getVersionScore(entry.id),
       context: getContextLength(entry.model),
       index: entry.index,
@@ -45,7 +34,6 @@ export function rankModels({
     .sort((a, b) => (
       b.updated - a.updated ||
       b.created - a.created ||
-      b.family - a.family ||
       b.version - a.version ||
       b.context - a.context ||
       a.id.localeCompare(b.id) ||
@@ -195,14 +183,6 @@ function getContextLength(model) {
   ]) {
     const value = Number(model?.[key]);
     if (Number.isFinite(value) && value > 0) return value;
-  }
-
-  return 0;
-}
-
-function getFamilyPriority(id) {
-  for (const [pattern, priority] of FAMILY_PRIORITIES) {
-    if (pattern.test(id)) return priority;
   }
 
   return 0;

@@ -4,6 +4,7 @@ import test, { beforeEach } from 'node:test';
 import {
   clearDiscoveryCache,
   declaresToolSupport,
+  declaresVision,
   discoverModels,
   readContextWindow,
   readOutputLimit,
@@ -16,7 +17,7 @@ const provider = {
   baseUrl: 'https://api.acme.test/v1',
   modelsUrl: 'https://api.acme.test/v1/models',
   apiKey: 'secret',
-  models: [{ model: 'curated-one', label: 'Curated One', contextWindow: 1000, maxOutputTokens: 100 }],
+  models: [{ model: 'configured-one', label: 'Configured One', contextWindow: 1000, maxOutputTokens: 100 }],
 };
 
 // Discovery caches per session; each test needs to start from a clean slate.
@@ -92,7 +93,7 @@ test('the list is capped so one provider cannot flood the picker', async () => {
   assert.equal(result.models.length, 5);
 });
 
-test('an unreachable provider keeps its shipped list', async () => {
+test('an unreachable provider keeps its configured list', async () => {
   const result = await discoverModels(provider, {
     fetchImpl: async () => { throw new Error('ECONNREFUSED'); },
   });
@@ -102,7 +103,7 @@ test('an unreachable provider keeps its shipped list', async () => {
   assert.deepEqual(result.models, provider.models);
 });
 
-test('an error response keeps the shipped list rather than emptying the picker', async () => {
+test('an error response keeps the configured list rather than emptying the picker', async () => {
   const result = await discoverModels(provider, {
     fetchImpl: respondWith(null, { ok: false, status: 401 }),
   });
@@ -201,12 +202,45 @@ test('namespaced ids get a readable label while the id itself is preserved', asy
   assert.equal(model.label, 'Qwen3.5-397B-A17B-TEE (Acme)');
 });
 
-test('a curated label wins over the generated one', async () => {
+test('a configured label wins over the generated one', async () => {
   const result = await discoverModels(provider, {
-    fetchImpl: respondWith({ data: [{ id: 'curated-one' }] }),
+    fetchImpl: respondWith({ data: [{ id: 'configured-one' }] }),
   });
 
-  assert.equal(result.models[0].label, 'Curated One');
+  assert.equal(result.models[0].label, 'Configured One');
+});
+
+test('without configured models a failure yields an empty list with a reason', async () => {
+  const result = await discoverModels({ ...provider, models: [] }, {
+    fetchImpl: async () => { throw new Error('down'); },
+    cache: new Map(),
+  });
+
+  assert.equal(result.source, 'catalog');
+  assert.match(result.reason, /down/);
+  assert.deepEqual(result.models, []);
+});
+
+test('vision support is read from the provider payload', () => {
+  assert.equal(declaresVision({ input_modalities: ['text', 'image'] }), true);
+  assert.equal(declaresVision({ architecture: { input_modalities: ['image'] } }), true);
+  assert.equal(declaresVision({ attachment: true }), true);
+  assert.equal(declaresVision({ capabilities: { supports: { vision: true } } }), true);
+  assert.equal(declaresVision({ input_modalities: ['text'] }), false);
+  assert.equal(declaresVision({ id: 'plain' }), false);
+  assert.equal(declaresVision(null), false);
+});
+
+test('a discovered model carries live vision and reasoning flags', async () => {
+  const result = await discoverModels({ ...provider, models: [] }, {
+    fetchImpl: respondWith({
+      data: [{ id: 'acme-omni', input_modalities: ['text', 'image'], supported_parameters: ['tools', 'reasoning'] }],
+    }),
+    cache: new Map(),
+  });
+
+  assert.equal(result.models[0].vision, true);
+  assert.equal(result.models[0].reasoning, true);
 });
 
 test('the catalog is fetched once per provider, not on every rebuild', async () => {

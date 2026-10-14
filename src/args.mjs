@@ -47,7 +47,7 @@ export function parseArgs(argv) {
       continue;
     }
 
-    // Skip asking providers for their catalogs and use the shipped lists instead.
+    // Skip asking providers for their catalogs; use pinned or remembered lists instead.
     if (arg === '--no-discovery') {
       result.noDiscovery = true;
       continue;

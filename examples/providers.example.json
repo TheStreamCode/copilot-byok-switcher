@@ -1,6 +1,6 @@
 {
   "$schema": "../schemas/providers.schema.json",
-  "_comment": "Custom configuration: copy to ~/.config/copilot-byok/providers.json (or %APPDATA%\\copilot-byok\\providers.json) to replace the built-in catalog. Use it for different models, a company endpoint, or a local runtime. Never write keys here: only the names of the environment variables that hold them.",
+  "_comment": "Custom configuration: copy to ~/.config/copilot-byok/providers.json (or %APPDATA%\\copilot-byok\\providers.json) to replace the built-in catalog. Providers need only an endpoint: model lists come from live discovery. Pin models only to fix the list or work fully offline. Never write keys here: only the names of the environment variables that hold them.",
   "providers": [
     {
       "id": "openai",
@@ -8,66 +8,6 @@
       "baseUrl": "https://api.openai.com/v1",
       "apiKeyEnv": [
         "OPENAI_API_KEY"
-      ],
-      "models": [
-        {
-          "model": "gpt-5.5",
-          "label": "GPT-5.5 (my key)",
-          "contextWindow": 1050000,
-          "maxOutputTokens": 128000
-        },
-        {
-          "model": "gpt-5.4-mini",
-          "label": "GPT-5.4 mini",
-          "contextWindow": 1050000,
-          "maxOutputTokens": 128000
-        }
-      ]
-    },
-    {
-      "id": "anthropic",
-      "name": "Anthropic",
-      "baseUrl": "https://api.anthropic.com/v1",
-      "apiKeyEnv": [
-        "ANTHROPIC_API_KEY"
-      ],
-      "models": [
-        {
-          "model": "claude-sonnet-4-6",
-          "label": "Claude Sonnet 4.6",
-          "contextWindow": 1000000,
-          "maxOutputTokens": 128000
-        }
-      ]
-    },
-    {
-      "id": "deepseek",
-      "name": "DeepSeek",
-      "baseUrl": "https://api.deepseek.com/v1",
-      "apiKeyEnv": [
-        "DEEPSEEK_API_KEY"
-      ],
-      "models": [
-        {
-          "model": "deepseek-v4-pro",
-          "label": "DeepSeek V4 Pro",
-          "contextWindow": 1000000,
-          "maxOutputTokens": 384000
-        }
-      ]
-    },
-    {
-      "id": "ollama",
-      "name": "Local Ollama",
-      "baseUrl": "http://127.0.0.1:11434/v1",
-      "authRequired": false,
-      "models": [
-        {
-          "model": "qwen3-coder:30b",
-          "label": "Qwen3 Coder 30B (local)",
-          "contextWindow": 262144,
-          "maxOutputTokens": 32768
-        }
       ]
     },
     {
@@ -78,16 +18,22 @@
         "COMPANY_LLM_KEY"
       ],
       "headers": {
-        "X-Tenant-Id": "platform-team"
+        "X-Tenant": "my-team"
       },
       "models": [
         {
-          "model": "internal-model",
-          "label": "Internal model",
+          "model": "company-coder-large",
+          "label": "Company Coder Large",
           "contextWindow": 200000,
           "maxOutputTokens": 32000
         }
       ]
+    },
+    {
+      "id": "ollama",
+      "name": "Local Ollama",
+      "baseUrl": "http://127.0.0.1:11434/v1",
+      "authRequired": false
     }
   ]
 }

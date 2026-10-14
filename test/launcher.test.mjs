@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
+import { mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 
-import { startRouter } from '../src/launcher.mjs';
+import { resolveOfflineModels, startRouter } from '../src/launcher.mjs';
+import { rememberModels } from '../src/model-cache.mjs';
 
 const base = {
   id: 'acme',
@@ -82,4 +86,20 @@ test('the router binds to loopback only', async () => {
   } finally {
     await router.close();
   }
+});
+
+test('offline mode uses remembered lists without contacting providers', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'copilot-byok-offline-'));
+  const env = { COPILOT_BYOK_MODEL_CACHE: join(dir, 'models.json') };
+  await rememberModels('acme', [{ model: 'yours-1' }], env);
+
+  const resolved = await resolveOfflineModels([
+    { id: 'acme', name: 'Acme', models: [] },
+    { id: 'pinned', name: 'Pinned', models: [{ model: 'fixed-one' }] },
+    { id: 'unknown', name: 'Unknown', models: [] },
+  ], { env });
+
+  assert.deepEqual(resolved.find((entry) => entry.id === 'acme').models.map((model) => model.model), ['yours-1']);
+  assert.deepEqual(resolved.find((entry) => entry.id === 'pinned').models.map((model) => model.model), ['fixed-one']);
+  assert.deepEqual(resolved.find((entry) => entry.id === 'unknown').models, []);
 });

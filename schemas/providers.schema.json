@@ -157,7 +157,7 @@
         },
         "models": {
           "type": "array",
-          "description": "Models published to the /model picker. Without this field the provider is only usable with --legacy.",
+          "description": "Optional pinned models published to the /model picker. When absent or empty, models come from live discovery.",
           "items": {
             "oneOf": [
               {

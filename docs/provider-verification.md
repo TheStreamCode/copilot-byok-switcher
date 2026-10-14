@@ -1,6 +1,6 @@
 # Provider verification
 
-Last verified: 2026-08-12 (model-list endpoints re-verified the same day)
+Last verified: 2026-10-14 for endpoints and model lists; end-to-end runs below are from 2026-08-12.
 
 This document separates three different levels of evidence, because they are not
 interchangeable:
@@ -19,6 +19,8 @@ interchangeable:
 - GitHub Copilot CLI 1.0.79, personal (free) plan
 - Endpoint probes: `POST /chat/completions` with a deliberately invalid key and a
   25-second timeout. No credentials were printed.
+- Endpoint and model-list tables were re-probed on 2026-10-14 (Windows,
+  Node.js 24.21, invalid-key probes, no credentials).
 
 ## Endpoint reachability
 
@@ -45,15 +47,13 @@ All entries below answered on their OpenAI-compatible route.
 | Zhipu AI (CN) | `https://open.bigmodel.cn/api/paas/v4` | 401 |
 | Moonshot Kimi | `https://api.moonshot.ai/v1` | 401 |
 | MiniMax | `https://api.minimax.io/v1` | 401 |
-| StepFun | `https://api.stepfun.com/v1` | 401 |
+| Meta Muse | `https://api.meta.ai/v1` | 401 |
 | SiliconFlow | `https://api.siliconflow.com/v1` | 401 |
 | ModelScope | `https://api-inference.modelscope.cn/v1` | 400 |
-| ByteDance Doubao | `https://ark.cn-beijing.volces.com/api/v3` | 401 |
-| Tencent Hunyuan | `https://api.hunyuan.cloud.tencent.com/v1` | 401 |
-| Baidu Qianfan | `https://qianfan.baidubce.com/v2` | 401 |
 | Baichuan | `https://api.baichuan-ai.com/v1` | 401 |
 | Chutes | `https://llm.chutes.ai/v1` | 401 |
 | OpenCode Zen | `https://opencode.ai/zen/v1` | 401 |
+| OpenCode Go | `https://opencode.ai/zen/go/v1` | 400 |
 | Baseten | `https://inference.baseten.co/v1` | 403 |
 
 Two endpoints answered `404` to the probe because they validate the model name
@@ -64,35 +64,47 @@ before the credential, and the probe deliberately sends a non-existent model:
 | Fireworks AI | `https://api.fireworks.ai/inference/v1` | 404 on an unknown model |
 | Nvidia NIM | `https://integrate.api.nvidia.com/v1` | 404 on an unknown model |
 
+Perplexity, Baichuan and Baseten were probed but are not shipped: Perplexity is
+search-focused rather than coding-oriented, and Baichuan and Baseten are
+unverified for coding use. StepFun, Doubao, Hunyuan and Qianfan were removed
+from the catalog for the same reason — the catalog keeps only coding-oriented
+frontier providers.
+
 ## Model-list endpoints
 
 Discovery reads each provider's `GET /models`, so that route was probed for every
-catalog entry with an invalid key. **None returned 404** — every provider exposes
-it. Four serve it without authentication, which is how the model counts below
-were observed:
+catalog entry. Sending no credentials returns the public catalogs below;
+sending an invalid key is rejected instead, so a 401 proves the route exists
+but says nothing about catalog contents. Observed 2026-10-14 via
+`npm run catalog:audit` with no keys configured:
 
 | Provider | Result |
 |---|---|
-| ModelScope | 200 — 43 models |
-| OpenCode Go | 200 — 25 models |
-| OpenCode Zen | 200 — 61 models |
-| OpenRouter | 200 — 408 models, 340 declaring tool support |
-| Gemini, xAI | 400 (route exists, request rejected) |
-| Qianfan | 403 |
+| Chutes | 200 — 14 models, all usable |
+| DeepInfra | 200 — 179 models, 137 usable after ranking |
+| ModelScope | 200 — 36 models, 34 usable |
+| Nvidia NIM | 200 — 80 models, 69 usable |
+| OpenCode Go | 200 — 40 models, all usable |
+| OpenCode Zen | 200 — 85 models, all usable |
+| OpenRouter | 200 — 462 models, 447 usable |
+| Gemini | 404 without a key (400 with an invalid one) |
+| xAI | 400 (route exists, request rejected) |
 | All others | 401 |
 | Ollama, LM Studio | connection refused — local servers, not running here |
 
 Some providers publish the metadata discovery needs alongside the list, which is
-what lets the picker show real limits rather than guesses:
+what lets the picker show real limits rather than defaults:
 
 | Provider | Fields observed |
 |---|---|
 | Chutes | `context_length`, `max_output_length`, `supported_features: ["json_mode","tools","structured_outputs","reasoning"]` |
 | OpenRouter | `context_length`, `top_provider.max_completion_tokens`, `supported_parameters` including `tools` |
+| Nvidia NIM | ids only (`id`, `created`, `owned_by`) |
+| ModelScope | ids only (`id`, `created`, `owned_by`) |
 
-Providers that publish only ids still work: their limits come from the shipped
-catalog, and a model is excluded only when a provider explicitly says it cannot
-call tools.
+Providers that publish only ids still work: their limits fall back to
+conservative defaults (128k context, 32k output), and a model is excluded only
+when a provider explicitly says it cannot call tools.
 
 ### Discovery against real keys
 
@@ -100,7 +112,7 @@ call tools.
 |---|---|
 | Chutes | 12 models, with context and output read from the API |
 | Alibaba Token Plan | 7 models |
-| OpenAI | 401 — the key on this machine is not valid for `api.openai.com`; the curated list was used, as designed |
+| OpenAI | 401 — the key on this machine is not valid for `api.openai.com`; nothing remembered, so the provider stayed out of the picker, as designed |
 
 Measured wall-clock for the three configured providers, queried in parallel: 1.2s.
 
