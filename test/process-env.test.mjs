@@ -14,12 +14,17 @@ test('catalog provider keys never reach the Copilot child process', () => {
     QIANFAN_API_KEY: 'secret',
     SILICONFLOW_API_KEY: 'secret',
     OPENCODE_ZEN_API_KEY: 'secret',
+    MODEL_API_KEY: 'secret',
+    META_API_KEY: 'secret',
+    NVIDIA_API_KEY: 'secret',
+    NGC_API_KEY: 'secret',
   });
 
   assert.equal(env.PATH, '/usr/bin');
   for (const name of [
     'OPENAI_API_KEY', 'GEMINI_API_KEY', 'DASHSCOPE_API_KEY', 'ZHIPU_CN_API_KEY',
     'ARK_API_KEY', 'QIANFAN_API_KEY', 'SILICONFLOW_API_KEY', 'OPENCODE_ZEN_API_KEY',
+    'MODEL_API_KEY', 'META_API_KEY', 'NVIDIA_API_KEY', 'NGC_API_KEY',
   ]) {
     assert.equal(env[name], undefined, `${name} must be stripped`);
   }

@@ -3,16 +3,17 @@
 //
 // Every provider in the catalog exposes an OpenAI-style GET /models (verified at
 // release time), and most return the metadata that matters with it: context
-// window, output limit, and whether the model can call tools. What is missing is
-// filled in from the shipped catalog, and a provider that cannot be reached falls
-// back to it entirely — a network hiccup must never empty the picker.
+// window, output limit, and whether the model can call tools. What is missing
+// falls back to conservative defaults, and a provider that cannot be reached
+// falls back to the list its key returned last time — or, when nothing was ever
+// remembered, it stays out of the picker with the reason logged.
 
 import { rankModels } from './model-ranking.mjs';
 import { recallModels, rememberModels } from './model-cache.mjs';
 
 // Providers are queried in parallel, so this is the worst-case startup delay, not
 // a per-provider cost. Measured: the slower catalogs answer in about five seconds,
-// and anything past this keeps its shipped list rather than holding up the session.
+// and anything past this falls back to its remembered list rather than holding up the session.
 const DEFAULT_TIMEOUT_MS = 9000;
 const DEFAULT_LIMIT = 12;
 const MAX_CATALOG_BYTES = 5 * 1024 * 1024;
@@ -42,14 +43,14 @@ export async function discoverModels(provider, {
   diskCache = null,
   env = process.env,
 } = {}) {
-  // The shipped list is generic; a provider's catalog belongs to the plan behind
-  // the key. Preferring what this key last returned avoids offering models the
-  // user does not have when a request fails.
+  // A provider's catalog belongs to the plan behind the key, so what this key
+  // last returned beats any pinned list: preferring it avoids offering models
+  // the user does not have when a request fails.
   const remembered = diskCache ? recallModels(diskCache, provider.id, now) : null;
-  const curated = remembered || provider.models || [];
+  const configured = remembered || provider.models || [];
 
   if (provider.discover === false || !provider.modelsUrl) {
-    return { models: curated, source: 'catalog', reason: 'discovery disabled' };
+    return { models: configured, source: 'catalog', reason: 'discovery disabled' };
   }
 
   // The catalog is rebuilt whenever Copilot asks for the model list, which would
@@ -82,12 +83,12 @@ export async function discoverModels(provider, {
       // Silence is not a denial: plenty of providers publish no capability field.
       if (tools === false) continue;
 
-      models.push(mergeWithCurated(id, entry, curated, provider));
+      models.push(mergeWithConfigured(id, entry, configured, provider));
       if (models.length >= limit) break;
     }
 
     const result = models.length === 0
-      ? { models: curated, source: remembered ? 'remembered' : 'catalog', reason: 'no usable models returned' }
+      ? { models: configured, source: remembered ? 'remembered' : 'catalog', reason: 'no usable models returned' }
       : { models, source: 'provider' };
 
     cache?.set(cacheKey, { at: now(), result });
@@ -97,7 +98,7 @@ export async function discoverModels(provider, {
     return result;
   } catch (error) {
     const reason = error.name === 'TimeoutError' ? `timed out after ${timeoutMs}ms` : error.message;
-    const result = { models: curated, source: remembered ? 'remembered' : 'catalog', reason };
+    const result = { models: configured, source: remembered ? 'remembered' : 'catalog', reason };
 
     // Cache failures too: a provider that is down or rejecting the key would
     // otherwise be retried on every single model-list request.
@@ -184,6 +185,36 @@ export function declaresReasoning(entry) {
   return Boolean(supports?.reasoning || supports?.reasoning_effort);
 }
 
+/**
+ * Whether the model accepts images. Copilot only offers image input for models
+ * that say so; unlike reasoning this was previously known from pinned lists
+ * alone, so sparse catalogs simply omit the flag.
+ */
+export function declaresVision(entry) {
+  if (!entry || typeof entry !== 'object') return false;
+
+  for (const field of ['modalities', 'input_modalities', 'inputModalities']) {
+    const value = entry[field];
+    if (Array.isArray(value) && value.some((item) => /^(image|vision)$/i.test(String(item)))) {
+      return true;
+    }
+  }
+
+  const architecture = entry.architecture;
+  if (architecture && typeof architecture === 'object') {
+    for (const field of ['modalities', 'input_modalities', 'inputModalities']) {
+      const value = architecture[field];
+      if (Array.isArray(value) && value.some((item) => /^(image|vision)$/i.test(String(item)))) {
+        return true;
+      }
+    }
+  }
+
+  if (entry.attachment === true) return true;
+  const supports = entry.capabilities?.supports || entry.capabilities;
+  return Boolean(supports?.vision);
+}
+
 export function readContextWindow(entry) {
   return firstPositive(
     entry?.context_length,
@@ -205,8 +236,8 @@ export function readOutputLimit(entry) {
   );
 }
 
-function mergeWithCurated(id, entry, curated, provider) {
-  const known = curated.find((model) => model.model === id);
+function mergeWithConfigured(id, entry, configured, provider) {
+  const known = configured.find((model) => model.model === id);
   const context = readContextWindow(entry) || known?.contextWindow;
   const output = readOutputLimit(entry) || known?.maxOutputTokens;
 
@@ -216,6 +247,7 @@ function mergeWithCurated(id, entry, curated, provider) {
     ...(context ? { contextWindow: context } : {}),
     ...(output ? { maxOutputTokens: output } : {}),
     ...(declaresReasoning(entry) || known?.reasoning ? { reasoning: true } : {}),
+    ...(declaresVision(entry) || known?.vision ? { vision: true } : {}),
   };
 }
 

@@ -11,8 +11,8 @@ const TRANSPORTS = new Set(['http', 'websockets']);
 const MODELS_AUTH_MODES = new Set([true, false, 'none', 'bearer', 'x-api-key', 'api-key']);
 const SECRET_QUERY_NAME_PATTERN = /(^|[-_.])(api[-_.]?key|subscription[-_.]?key|auth(?:orization)?|bearer|credential|password|secret|signature|sig|token)([-_.]|$)/i;
 
-// Default catalog: generated from models.dev with `npm run catalog:update`, so
-// context windows and capabilities stay aligned with what providers actually offer.
+// Default catalog: generated with `npm run catalog:update`. It ships provider
+// endpoints only; model lists always come from live discovery.
 const DEFAULT_PROVIDERS = JSON.parse(
   readFileSync(new URL('./providers.default.json', import.meta.url), 'utf8')
 ).providers;
@@ -136,7 +136,7 @@ function normalizeProvider(provider, env, index, secrets = {}) {
   };
 }
 
-/** Models published to the Copilot picker. Absent => the provider is legacy-only. */
+/** Pinned models published to the Copilot picker. Absent or empty: models come from live discovery. */
 function normalizeModels(value, providerName) {
   if (value == null) return [];
   if (!Array.isArray(value)) {

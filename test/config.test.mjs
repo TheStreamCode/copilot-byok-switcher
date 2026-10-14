@@ -33,14 +33,20 @@ test('loads the generated provider catalog', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'copilot-byok-empty-config-'));
   const config = await loadConfig({ env: { XDG_CONFIG_HOME: dir } });
 
-  // The catalog is regenerated from models.dev, so the test checks the shape and
-  // the fixed points rather than the exact list of models.
-  assert.ok(config.providers.length >= 20);
+  // The catalog ships endpoints only; model lists come from live discovery.
+  // The test checks the fixed points rather than the full list.
+  assert.equal(config.providers.length, 28);
 
   const openai = findProvider(config, 'openai');
   assert.equal(openai.baseUrl, 'https://api.openai.com/v1');
   assert.ok(openai.apiKeyEnv.includes('OPENAI_API_KEY'));
-  assert.ok(openai.models.length > 0);
+  assert.deepEqual(openai.models, []);
+
+  const muse = findProvider(config, 'muse');
+  assert.equal(muse.baseUrl, 'https://api.meta.ai/v1');
+
+  const nim = findProvider(config, 'nim');
+  assert.equal(nim.baseUrl, 'https://integrate.api.nvidia.com/v1');
 
   const anthropic = findProvider(config, 'anthropic');
   assert.equal(anthropic.baseUrl, 'https://api.anthropic.com/v1');
@@ -54,6 +60,7 @@ test('loads the generated provider catalog', async () => {
 
   for (const provider of config.providers) {
     assert.equal(provider.type, 'openai', `${provider.id} must be OpenAI-compatible`);
+    assert.match(provider.modelsUrl, /^https?:\/\//, `${provider.id} needs a models endpoint`);
     for (const model of provider.models) {
       assert.ok(model.model, `${provider.id} has a model without a name`);
       if (model.contextWindow != null) assert.ok(model.contextWindow > 0);
@@ -83,8 +90,11 @@ test('the published example is a valid configuration', async () => {
   for (const provider of example.providers) {
     assert.ok(provider.id);
     assert.ok(provider.baseUrl);
-    assert.ok(provider.models.length > 0, `${provider.id} must declare at least one model`);
   }
+
+  // The example covers both styles: discovery-only and pinned models.
+  assert.ok(example.providers.some((provider) => provider.models.length === 0));
+  assert.ok(example.providers.some((provider) => provider.models.length > 0));
 
   // The example also covers the credential-free case (local runtime).
   assert.ok(example.providers.some((provider) => provider.authRequired === false));

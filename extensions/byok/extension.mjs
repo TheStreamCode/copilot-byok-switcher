@@ -62,15 +62,15 @@ async function currentState() {
   return { config, secrets };
 }
 
-/** Providers worth offering: they publish models and need a credential. */
+/** Providers worth offering: they need a credential. Models load at startup. */
 function configurable(config) {
-  return config.providers.filter((provider) => provider.authRequired !== false && provider.models?.length);
+  return config.providers.filter((provider) => provider.authRequired !== false);
 }
 
 function describe(provider, secrets) {
   if (ENV_PROVIDERS.has(provider.id)) return `${provider.name} — set via environment`;
   if (secrets[provider.id]) return `${provider.name} — key stored`;
-  return `${provider.name} — not configured (${provider.models.length} models)`;
+  return `${provider.name} — not configured`;
 }
 
 async function addProvider() {
@@ -106,7 +106,7 @@ async function addProvider() {
   await saveKey(provider.id, key.trim(), process.env);
   await session.log(
     `Saved the ${provider.name} key in ${keystorePath(process.env)}.\n` +
-    `Its ${provider.models.length} models will be in /model the next time you start ` +
+    `Its models will be in /model the next time you start ` +
     'copilot-byok: Copilot caches the model list for the lifetime of a session, so ' +
     'neither reopening the picker nor /restart picks them up.'
   );

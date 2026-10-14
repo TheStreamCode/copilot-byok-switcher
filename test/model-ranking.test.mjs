@@ -65,7 +65,20 @@ test('uses model name version as a tie-break when provider timestamps are equal'
     },
   });
 
-  assert.deepEqual(models.slice(0, 3), ['minimax-m2.7', 'minimax-m2.5', 'kimi-k2.6']);
+  assert.deepEqual(models.slice(0, 3), ['minimax-m2.7', 'kimi-k2.6', 'minimax-m2.5']);
+});
+
+test('no model family is preferred over another', () => {
+  const models = rankModels({
+    payload: {
+      data: [
+        { id: 'kimi-k2.5', created: 100 },
+        { id: 'some-new-family-9.0', created: 100 },
+      ],
+    },
+  });
+
+  assert.deepEqual(models, ['some-new-family-9.0', 'kimi-k2.5']);
 });
 
 test('does not reject minimal model catalogs when tool metadata is absent', () => {

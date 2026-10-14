@@ -4,6 +4,40 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Meta Muse (`muse`) and NVIDIA NIM (`nim`) providers, both verified with
+  OpenAI-compatible chat and model-list endpoints.
+- Image-input support is now read from each provider's live catalog, the same
+  way reasoning support already was.
+- `--no-discovery` is now an offline mode: providers use their pinned models or
+  the list each key returned last time, without any network request.
+
+### Changed
+
+- The built-in catalog ships endpoints only; model lists always come from live
+  discovery. There are no shipped model lists to go stale.
+- Model ranking no longer prefers any model family; order is recency, version,
+  context window, then name.
+- `npm run catalog:update` is offline and instant: no more models.dev fetch.
+- `npm run catalog:audit` now checks that every provider serves at least one
+  usable chat model instead of checking pinned model ids.
+- `--list-providers` marks providers with a configured key as usable and shows
+  pinned or remembered model counts.
+
+### Removed
+
+- **Breaking:** `stepfun`, `doubao`, `hunyuan` and `qianfan` providers were
+  removed: the catalog keeps only coding-oriented frontier providers. Configs
+  referencing them need updating; account-specific endpoint ids still work
+  through a custom provider entry.
+
+### Fixed
+
+- The `/byok` in-session command lists every provider needing a credential
+  again instead of an empty list, and no longer reports model counts that only
+  exist after discovery.
+
 ## [1.4.2] - 2026-08-12
 
 ### Changed

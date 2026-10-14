@@ -48,7 +48,7 @@ src/router.mjs            The local proxy: model injection, provider routing, pa
 src/catalog.mjs           Turns providers into the model entries Copilot expects from GET /models
 src/launcher.mjs          Starts the router on an ephemeral port and spawns Copilot against it
 src/upstream.mjs          Resolves the Copilot API tier (individual / business / enterprise)
-src/discovery.mjs         Asks each provider for its live model list; falls back to the catalog
+src/discovery.mjs         Asks each provider for its live model list; falls back to the remembered list
 src/config.mjs            Provider config loading and validation; loads providers.default.json
 src/providers.default.json  Generated catalog — never edit by hand, run npm run catalog:update
 src/keystore.mjs          Optional on-disk key store (0600 / owner-only ACL)
@@ -60,8 +60,8 @@ src/copilot-bin.mjs       Resolves the Copilot executable, skipping the stale VS
 src/model-ranking.mjs     Pure ranking of provider model catalogs (legacy mode)
 src/process-env.mjs       Strips stale/secret variables from the child environment
 src/provider-env.mjs      Builds the COPILOT_PROVIDER_* variables (legacy mode)
-scripts/update-catalog.mjs  Rebuilds the catalog from models.dev
-scripts/catalog-sources.json  Curated provider/model selection feeding the generator
+scripts/update-catalog.mjs  Rebuilds the endpoint catalog (offline, no network)
+scripts/catalog-sources.json  Provider endpoints feeding the generator
 extensions/byok/extension.mjs  The /byok slash command, copied into ~/.copilot/extensions/
 test/*.test.mjs           One suite per src module
 schemas/providers.schema.json  Published JSON Schema for providers.json
@@ -80,7 +80,7 @@ All commands run from the repository root.
 | Test | `npm test` |
 | Test with coverage | `npm run test:coverage` |
 | Full quality gate | `npm run check` (lint + test) |
-| Verify curated models still exist | `npm run catalog:audit` |
+| Verify providers serve usable models | `npm run catalog:audit` |
 | Package contents check | `npm pack --dry-run` |
 | Dependency audit | `npm audit --omit=dev --audit-level=high` |
 | Local install for manual testing | `npm link` then `copilot-byok --help` |
@@ -132,20 +132,18 @@ This project handles third-party provider API keys. Every change must preserve t
 The catalog is generated. **Never hand-edit `src/providers.default.json`** — it is overwritten.
 
 1. Add the provider to `scripts/catalog-sources.json`, using only endpoints documented by the
-   provider, then run `npm run catalog:update`. List model ids under `models`; the generator fills
-   in context window and capabilities from models.dev and drops anything without tool-calling
-   support. Leave `models` empty when names are account-specific (Volcengine endpoint ids) or the
-   catalog is too large to curate (OpenRouter).
-2. Run `npm run catalog:audit` after changing any curated list. A model that does
-   not exist on the provider is worse than a missing one: it is offered to the user
-   and fails only when picked.
+   provider, then run `npm run catalog:update`. List no models: the picker is filled
+   by live discovery from the provider's `GET /models`.
+2. Run `npm run catalog:audit` after changing the catalog. A provider that answers
+   but yields no usable chat model fails the audit; providers without a configured
+   key are reported as unverifiable.
 3. Verify the endpoint yourself before adding it: `POST {baseUrl}/chat/completions` with an invalid
    key must answer `400`/`401`/`403`, not `404`. A `404` usually means the path is wrong.
-3. For authenticated providers, add every credential environment name to `DEFAULT_SECRET_SOURCE_ENV`
+4. For authenticated providers, add every credential environment name to `DEFAULT_SECRET_SOURCE_ENV`
    in `src/process-env.mjs`. For intentionally authless providers set `authRequired: false` and do
    not invent a credential environment name.
-4. Add the row to the provider table in `README.md`.
-5. Update `docs/provider-verification.md` honestly: endpoint reachability, authenticated catalog
+5. Add the row to the provider table in `README.md`.
+6. Update `docs/provider-verification.md` honestly: endpoint reachability, authenticated catalog
    access, and end-to-end inference are three distinct evidence levels. Never claim a level that was
    not actually verified.
 

@@ -61,6 +61,10 @@ const DEFAULT_SECRET_SOURCE_ENV = new Set([
   'TOGETHER_API_KEY',
   'DEEPINFRA_API_KEY',
   'OPENCODE_ZEN_API_KEY',
+  'MODEL_API_KEY',
+  'META_API_KEY',
+  'NVIDIA_API_KEY',
+  'NGC_API_KEY',
 ]);
 
 // Every provider also accepts COPILOT_BYOK_<NAME>_API_KEY: the pattern covers the

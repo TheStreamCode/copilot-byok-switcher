@@ -85,9 +85,8 @@ The list comes from the provider itself. Three things can hide a model:
   chosen by the same ranking used elsewhere. Raise it with `maxDiscoveredModels`
   in your config, or pin the exact models you want under `models`.
 - **Discovery fell back.** If the provider was unreachable or rejected the key,
-  the list it returned last time is used; failing that, the shipped one. The log
-  says which and why. A shipped list is generic, so it may name models your plan
-  does not include — if you see one that should not be there, that is the sign.
+  the list it returned last time is used; failing that, the provider stays out
+  of the picker. The log says which and why.
 
 Results are cached for ten minutes, so a model added upstream may take that long
 to appear — restart to pick it up immediately.
@@ -101,16 +100,15 @@ provider actually offers:
 copilot-byok --legacy --provider <id> --list-models
 ```
 
-Then update `models` in your config, or run `npm run catalog:update` if you use
-the built-in catalog.
+Then pin the working names under `models` in your own config file.
 
 ## The agent starts but fails mid-task
 
 Almost always a capability mismatch: the model does not really support tool
-calling, and the harness discovers it once it tries to use a tool. The generated
-catalog only publishes models that report tool support, but a hand-written config
-entry can claim anything. Verify the model supports function calling and
-streaming before adding it.
+calling, and the harness discovers it once it tries to use a tool. Discovery
+only publishes models that do not rule out tool support, but a hand-written
+config entry can claim anything. Verify the model supports function calling and
+streaming before pinning it.
 
 ## Copilot CLI is not found
 
