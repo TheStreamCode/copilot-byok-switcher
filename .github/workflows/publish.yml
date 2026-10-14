@@ -40,8 +40,7 @@ jobs:
         run: npm pack --dry-run
 
       - name: Publish with provenance
+        # Trusted Publishing (OIDC): no token here on purpose. npm authenticates
+        # the run from the id-token permission above; setting NODE_AUTH_TOKEN
+        # would switch npm back to token auth and break the publish.
         run: npm publish --access public --provenance
-        env:
-          # Needed only to bootstrap the first publication. Remove the secret
-          # after configuring npm Trusted Publishing for this workflow.
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
