@@ -7,6 +7,7 @@ import { parseArgs } from './args.mjs';
 import { resolveCopilotBin } from './copilot-bin.mjs';
 import { findProvider, loadConfig } from './config.mjs';
 import { rankModels } from './model-ranking.mjs';
+import { providerModelHeaders } from './models-auth.mjs';
 import { buildProviderEnvironment } from './provider-env.mjs';
 import { sanitizeCopilotEnvironment } from './process-env.mjs';
 import { isQueryable, resolveLiveModels, resolveOfflineModels, runCopilotWithRouter, selectActiveProviders, startRouter } from './launcher.mjs';
@@ -318,26 +319,6 @@ async function loadProviderModels(provider, io, { strict = false } = {}) {
   }
 }
 
-function providerModelHeaders(provider) {
-  const headers = { ...(provider.modelsHeaders || {}) };
-  if (provider.modelsAuth === false || provider.modelsAuth === 'none') return headers;
-  const authMode = provider.modelsAuth === true || provider.modelsAuth == null
-    ? 'bearer'
-    : provider.modelsAuth;
-  const token = authMode === 'bearer'
-    ? provider.bearerToken || provider.apiKey
-    : provider.apiKey || provider.bearerToken;
-  if (!token) return headers;
-
-  const sameOrigin = new URL(provider.modelsUrl).origin === new URL(provider.baseUrl).origin;
-  const explicitAuth = provider.modelsAuth === true || typeof provider.modelsAuth === 'string';
-  if (!sameOrigin && !explicitAuth) return headers;
-
-  if (authMode === 'x-api-key') headers['x-api-key'] = token;
-  else if (authMode === 'api-key') headers['api-key'] = token;
-  else headers.Authorization = `Bearer ${token}`;
-  return headers;
-}
 
 async function readJsonResponse(response, maxBytes) {
   const contentLength = Number(response.headers?.get?.('content-length'));
