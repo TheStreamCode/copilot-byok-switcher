@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## [2.0.1] - 2026-10-21
+
+### Security
+
+- Live model discovery sent the provider credential to any configured `modelsUrl`, even when that
+  catalog lived on a different origin from the provider API. Discovery now applies the same scoping
+  rule as the interactive path: the key is attached only on the provider origin, or when the provider
+  sets an authenticated `modelsAuth` mode explicitly. Providers that rely on a cross-origin catalog
+  must set `modelsAuth` (for example `"bearer"`); no configuration change is required otherwise.
+
 ## [2.0.0] - 2026-10-14
 
 ### Added
