@@ -203,8 +203,9 @@ show only `bin/`, `src/`, `examples/`, `docs/`, `schemas/`, `package.json`, `REA
 - Bump with `npm version <new> --no-git-tag-version` so `package.json` and `package-lock.json` stay in sync,
   then update `CITATION.cff` and `CHANGELOG.md` to the same number. The README carries no version pins; it
   points at badges and the changelog instead.
-- `main` is protected: required status checks on all six CI jobs and **one approving review**. Push a branch
-  and open a pull request; never force-push, never rewrite history, never self-approve, never use admin bypass.
+- `main` is protected: all six CI jobs are required, conversations must be resolved, and history stays
+  linear. The single maintainer cannot self-approve, so no approving review is required. Push a branch and open
+  a pull request; never force-push, never rewrite history, never use admin bypass.
 - Tag (`v<version>`), GitHub Release, and `npm publish` happen only after the pull request is merged into `main`
   and CI is green.
 

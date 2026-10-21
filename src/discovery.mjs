@@ -8,6 +8,7 @@
 // falls back to the list its key returned last time — or, when nothing was ever
 // remembered, it stays out of the picker with the reason logged.
 
+import { providerModelHeaders } from './models-auth.mjs';
 import { rankModels } from './model-ranking.mjs';
 import { recallModels, rememberModels } from './model-cache.mjs';
 
@@ -108,9 +109,13 @@ export async function discoverModels(provider, {
 }
 
 async function fetchCatalog(provider, { timeoutMs, fetchImpl }) {
-  const headers = { accept: 'application/json', ...(provider.headers || {}) };
-  const token = provider.bearerToken || provider.apiKey;
-  if (token) headers.authorization = `Bearer ${token}`;
+  // Same scoping rule as the interactive path: the catalog receives the
+  // provider credential only on the provider origin, or when modelsAuth opts in.
+  const headers = {
+    accept: 'application/json',
+    ...(provider.headers || {}),
+    ...providerModelHeaders(provider),
+  };
 
   const response = await fetchImpl(provider.modelsUrl, {
     headers,
