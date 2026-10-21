@@ -134,7 +134,7 @@ test('the credential is sent to the catalog endpoint', async () => {
   let seen;
   await discoverModels(provider, {
     fetchImpl: async (url, options) => {
-      seen = { url, auth: options.headers.authorization };
+      seen = { url, auth: options.headers.Authorization };
       return respondWith({ data: [{ id: 'x' }] })();
     },
   });
@@ -288,4 +288,40 @@ test('a transient failure is retried sooner than a good result is refreshed', as
 
   await discoverModels(provider, { fetchImpl: failing, cache, now: () => 90_000 });
   assert.equal(calls, 2, 'retried after the short failure window');
+});
+
+// The model catalog is fetched by discovery, not by the interactive path; both
+// must apply the same origin scoping to provider credentials.
+function captureRequests(payload, sink) {
+  return async (url, init = {}) => {
+    sink.push({ url, headers: init.headers || {} });
+    return {
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      headers: { get: () => null },
+      json: async () => payload,
+    };
+  };
+}
+
+test('discovery does not send the provider key to a catalog on another origin', async () => {
+  const requests = [];
+  await discoverModels(
+    { ...provider, modelsUrl: 'https://catalog.other.test/models' },
+    { fetchImpl: captureRequests({ data: [{ id: 'x' }] }, requests) }
+  );
+
+  const { headers } = requests[0];
+  assert.equal(headers.Authorization, undefined);
+  assert.equal(headers.authorization, undefined);
+  assert.equal(headers['x-api-key'], undefined);
+  assert.equal(headers['api-key'], undefined);
+});
+
+test('discovery sends the key to a same-origin catalog', async () => {
+  const requests = [];
+  await discoverModels(provider, { fetchImpl: captureRequests({ data: [{ id: 'x' }] }, requests) });
+
+  assert.equal(requests[0].headers.Authorization, 'Bearer secret');
 });
