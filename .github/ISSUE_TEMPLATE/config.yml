@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Questions and workflows
+    url: https://github.com/TheStreamCode/copilot-byok-switcher/discussions
+    about: Ask usage questions and share workflows in GitHub Discussions
   - name: Security report
     url: https://github.com/TheStreamCode/copilot-byok-switcher/blob/main/SECURITY.md
     about: Report vulnerabilities privately by following the security policy.

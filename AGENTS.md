@@ -67,6 +67,10 @@ test/*.test.mjs           One suite per src module
 schemas/providers.schema.json  Published JSON Schema for providers.json
 examples/providers.example.json  Documented example configuration
 docs/provider-verification.md    Evidence matrix for provider claims
+docs/providers.md               Provider table, keys, model discovery, the /byok command
+docs/configuration.md           Custom providers.json, commands, environment variables, shim, reasoning effort
+docs/how-it-works.md            Router design, COPILOT_API_URL dependency, picker behavior
+docs/troubleshooting.md         Failure modes and diagnostics
 ```
 
 ## Commands
@@ -142,7 +146,7 @@ The catalog is generated. **Never hand-edit `src/providers.default.json`** — i
 4. For authenticated providers, add every credential environment name to `DEFAULT_SECRET_SOURCE_ENV`
    in `src/process-env.mjs`. For intentionally authless providers set `authRequired: false` and do
    not invent a credential environment name.
-5. Add the row to the provider table in `README.md`.
+5. Add the row to the provider table in `docs/providers.md`.
 6. Update `docs/provider-verification.md` honestly: endpoint reachability, authenticated catalog
    access, and end-to-end inference are three distinct evidence levels. Never claim a level that was
    not actually verified.
@@ -171,7 +175,8 @@ that had already been verified working.
 - The CLI contract is public: existing flags, aliases, provider ids, and the `--dry-run` JSON shape must keep
   working. Add options; do not rename or remove them.
 - Unrecognized arguments and everything after `--` are forwarded verbatim to Copilot CLI. Do not start
-  consuming new argument names without documenting the change in `README.md` and `CHANGELOG.md`.
+  consuming new argument names without documenting the change in the README, the relevant `docs/` page, and
+  `CHANGELOG.md`.
 - `schemas/providers.schema.json` is referenced by `$id` from `main`; only widen it, never narrow it.
 - Keep `engines.node` and the CI matrix in sync; raising the minimum Node version is a breaking change.
 
@@ -196,7 +201,8 @@ show only `bin/`, `src/`, `examples/`, `docs/`, `schemas/`, `package.json`, `REA
 - Semantic Versioning. Patch for fixes, cleanup, and documentation; minor for backward-compatible features;
   major only for intentional breaking changes.
 - Bump with `npm version <new> --no-git-tag-version` so `package.json` and `package-lock.json` stay in sync,
-  then update `CITATION.cff`, `CHANGELOG.md`, and the pinned versions in `README.md` to the same number.
+  then update `CITATION.cff` and `CHANGELOG.md` to the same number. The README carries no version pins; it
+  points at badges and the changelog instead.
 - `main` is protected: required status checks on all six CI jobs and **one approving review**. Push a branch
   and open a pull request; never force-push, never rewrite history, never self-approve, never use admin bypass.
 - Tag (`v<version>`), GitHub Release, and `npm publish` happen only after the pull request is merged into `main`
@@ -208,8 +214,8 @@ show only `bin/`, `src/`, `examples/`, `docs/`, `schemas/`, `package.json`, `REA
 - The version field in `package.json` — change it with `npm version`.
 - Action SHAs in `.github/workflows/ci.yml` are pinned to immutable commits with a `# vX.Y.Z` comment.
   Keep both in sync when updating.
-- Dependabot version-update PRs were intentionally disabled for this repository. Do not re-enable them
-  without an explicit request.
+- Dependabot version updates are configured in `.github/dependabot.yml`. Do not change that update policy,
+  disable it, or re-enable it without an explicit request.
 
 ## Repository visibility
 

@@ -27,11 +27,8 @@
     "name": "Michael Gasperini",
     "url": "https://mikesoft.it"
   },
-  "homepage": "https://github.com/TheStreamCode/copilot-byok-switcher#readme",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/TheStreamCode/copilot-byok-switcher.git"
-  },
+  "homepage": "https://www.npmjs.com/package/copilot-byok-switcher",
+  "repository": "github:TheStreamCode/copilot-byok-switcher",
   "bugs": {
     "url": "https://github.com/TheStreamCode/copilot-byok-switcher/issues"
   },

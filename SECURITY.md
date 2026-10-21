@@ -8,7 +8,24 @@ Security fixes are applied to the latest release only.
 
 Please do not report security vulnerabilities through public GitHub issues.
 
-Email security concerns to info@mikesoft.it with the affected version, impact, reproduction steps, and any suggested mitigation. You should receive an acknowledgement within five business days.
+Report it privately through [GitHub Security Advisories](https://github.com/TheStreamCode/copilot-byok-switcher/security/advisories/new) on this repository. If GitHub reporting is unavailable, email [info@mikesoft.it](mailto:info@mikesoft.it). Include the affected version, impact, reproduction steps, and any suggested mitigation.
+
+You can expect an initial acknowledgement within five business days and a status update within 30 days.
+
+## Scope
+
+In scope:
+
+- credential exposure or leakage caused by this project;
+- bypasses of the key-store permissions, credential redaction, or secret-stripping rules;
+- command injection or privilege escalation in shipped code;
+- credentials forwarded to an origin other than the configured provider.
+
+Out of scope:
+
+- vulnerabilities in GitHub Copilot CLI or a provider API, which must be reported upstream;
+- custom provider configurations that the user wrote and controls;
+- misconfiguration of the operating system or shell environment.
 
 ## How credentials are handled
 
