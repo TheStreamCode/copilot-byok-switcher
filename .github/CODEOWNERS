@@ -1,1 +1,11 @@
-* @TheStreamCode
+# Ownership of first-party sources and documentation.
+# Dependency manifests, lockfiles and GitHub workflows are intentionally unowned so
+# Dependabot pull requests do not request a maintainer review on every update.
+/bin/ @TheStreamCode
+/docs/ @TheStreamCode
+/examples/ @TheStreamCode
+/extensions/ @TheStreamCode
+/schemas/ @TheStreamCode
+/scripts/ @TheStreamCode
+/src/ @TheStreamCode
+/test/ @TheStreamCode
