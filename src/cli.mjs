@@ -1,9 +1,12 @@
+import { rmSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import readline from 'node:readline/promises';
 
 import spawn from 'cross-spawn';
 
 import { parseArgs } from './args.mjs';
+import { extractConfigPath } from './argv-config.mjs';
+import { buildCatalog, isByokModelId } from './catalog.mjs';
 import { resolveCopilotBin } from './copilot-bin.mjs';
 import { findProvider, loadConfig } from './config.mjs';
 import { rankModels } from './model-ranking.mjs';
@@ -11,8 +14,13 @@ import { providerModelHeaders } from './models-auth.mjs';
 import { buildProviderEnvironment } from './provider-env.mjs';
 import { sanitizeCopilotEnvironment } from './process-env.mjs';
 import { isQueryable, resolveLiveModels, resolveOfflineModels, runCopilotWithRouter, selectActiveProviders, startRouter } from './launcher.mjs';
+import { dataResidencyOrigin } from './upstream.mjs';
 import { readCache, recallModels } from './model-cache.mjs';
 import { runKeysCommand } from './keys-command.mjs';
+import { runDoctorCommand } from './doctor.mjs';
+import { runModelsCommand } from './models-command.mjs';
+import { buildNativeRegistry, nativeSelectionId } from './native-registry.mjs';
+import { createRegistryFile, inspectNativeRegistry } from './registry-file.mjs';
 import { loadKeys } from './keystore.mjs';
 import { runExtensionCommand } from './extension-install.mjs';
 import { runShimCommand } from './shim-install.mjs';
@@ -41,6 +49,16 @@ export async function main(argv = process.argv.slice(2), io = defaultIo()) {
     return runShimCommand({ argv: argv.slice(1), io });
   }
 
+  // `doctor` reports the state of the installation without starting Copilot.
+  if (argv[0] === 'doctor') {
+    return runDoctorCommand({ argv: argv.slice(1), io });
+  }
+
+  // `models` prints what the providers currently serve, without a session.
+  if (argv[0] === 'models') {
+    return runModelsCommand({ argv: argv.slice(1), io });
+  }
+
   const args = parseArgs(argv);
 
   if (args.help) {
@@ -65,6 +83,11 @@ export async function main(argv = process.argv.slice(2), io = defaultIo()) {
   if (args.listProviders) {
     const config = await loadConfig({ configPath: args.configPath, env: io.env, secrets });
     return await listProviders({ config, io });
+  }
+
+  if (args.nativeByok) {
+    const config = await loadConfig({ configPath: args.configPath, env: io.env, secrets });
+    return runNativeByokMode({ args, config, io });
   }
 
   if (!args.legacy) {
@@ -96,7 +119,7 @@ async function runRouterMode({ args, config, io }) {
 
   const router = await startRouter({
     providers,
-    upstreamOrigin: args.upstream || io.env.COPILOT_BYOK_UPSTREAM,
+    upstreamOrigin: args.upstream || io.env.COPILOT_BYOK_UPSTREAM || dataResidencyOrigin(io.env),
     onEvent: sessionLog.onEvent,
     // Re-read config and key store so a key added mid-session (via /byok)
     // shows up in the picker without restarting.
@@ -177,6 +200,99 @@ async function listProviders({ config, io }) {
   return 0;
 }
 
+/** Native BYOK: the CLI reads a generated providers.json and talks to the providers itself. */
+async function runNativeByokMode({ args, config, io }) {
+  const sessionLog = createSessionLog(io);
+
+  const providers = args.noDiscovery
+    ? await resolveOfflineModels(config.providers, { env: io.env })
+    : await discoverWithProgress({ config, io, sessionLog });
+  const active = selectActiveProviders(providers);
+
+  if (active.length === 0) {
+    io.stderr.write(
+      'No BYOK provider configured: starting Copilot with GitHub models only.\n' +
+      'Run "copilot-byok --list-providers" to see which environment variables to set.\n\n'
+    );
+    return runCopilot({ copilotArgs: nativeCopilotArgs(args, []), env: {}, io, dryRun: args.dryRun, native: true, config });
+  }
+
+  const registry = buildNativeRegistry(active);
+  const registryFile = await createRegistryFile(registry);
+  // A hard kill still leaves the file behind if only `finally` cleaned up.
+  const cleanupOnExit = () => rmSync(registryFile.dir, { recursive: true, force: true });
+  process.once('exit', cleanupOnExit);
+
+  const selectionIds = registry.models.map((model) => nativeSelectionId(model.provider, model.id));
+  const copilotArgs = nativeCopilotArgs(args, active);
+
+  if (args.dryRun) {
+    process.removeListener('exit', cleanupOnExit);
+    await registryFile.cleanup();
+    io.stdout.write(`${JSON.stringify({
+      mode: 'native-byok',
+      providers: active.map((provider) => provider.id),
+      models: selectionIds,
+      args: copilotArgs,
+    }, null, 2)}\n`);
+    return 0;
+  }
+
+  io.stderr.write(
+    `copilot-byok: added ${registry.models.length} models from ${active.length} providers through the native BYOK registry\n`
+  );
+
+  try {
+    return await runCopilot({
+      copilotArgs,
+      env: { COPILOT_PROVIDERS_CONFIG: registryFile.path },
+      io,
+      config,
+    });
+  } finally {
+    process.removeListener('exit', cleanupOnExit);
+    await registryFile.cleanup();
+    sessionLog.summarize();
+  }
+}
+
+/**
+ * Builds the Copilot arguments for native mode, translating a picker id from
+ * this project (`byok-...`) into the `provider/model` id the CLI expects.
+ */
+function nativeCopilotArgs(args, providers) {
+  const copilotArgs = [...args.copilotArgs];
+  if (!args.explicitModel) return copilotArgs;
+
+  let model = args.explicitModel;
+  if (isByokModelId(model) && providers.length > 0) {
+    const catalog = buildCatalog(providers.map((provider) => ({
+      ...provider,
+      apiKey: provider.bearerToken || provider.apiKey,
+    })));
+    const route = catalog.routes.get(model);
+    if (route) model = nativeSelectionId(route.provider.id, route.model.model);
+  }
+
+  return ['--model', model, ...copilotArgs];
+}
+
+/**
+ * A providers.json with entries takes precedence over COPILOT_PROVIDER_*, so
+ * --legacy would silently talk to the wrong provider. When one is present, the
+ * child gets an empty registry instead: the mode keeps its documented meaning.
+ */
+async function isolateLegacyRegistry({ io }) {
+  const native = await inspectNativeRegistry(io.env);
+  if (!native.present || (native.providers === 0 && native.models === 0)) return null;
+
+  const registryFile = await createRegistryFile({ providers: [], models: [] });
+  io.stderr.write(
+    `copilot-byok: ${native.path} would take precedence over COPILOT_PROVIDER_*; using an empty registry for this session.\n`
+  );
+  return registryFile;
+}
+
 /** Classic mode: one provider per session, without the GitHub models. */
 async function runLegacyMode({ args, io }) {
   const config = await loadConfig({ configPath: args.configPath, env: io.env, secrets: await loadKeys(io.env) });
@@ -209,7 +325,14 @@ async function runLegacyMode({ args, io }) {
   const wireModel = args.explicitModel || await selectModel({ provider, models, noPrompt: args.noModelPrompt, io });
   const effectiveProvider = args.wireApi ? { ...provider, wireApi: args.wireApi } : provider;
   const env = buildProviderEnvironment({ provider: effectiveProvider, wireModel, offline: args.offline });
-  return runCopilot({ copilotArgs: args.copilotArgs, env, io, dryRun: args.dryRun, provider, wireModel, config });
+  const isolation = await isolateLegacyRegistry({ io });
+  if (isolation) env.COPILOT_PROVIDERS_CONFIG = isolation.path;
+
+  try {
+    return await runCopilot({ copilotArgs: args.copilotArgs, env, io, dryRun: args.dryRun, provider, wireModel, config });
+  } finally {
+    await isolation?.cleanup();
+  }
 }
 
 function defaultIo() {
@@ -219,30 +342,6 @@ function defaultIo() {
     stderr: process.stderr,
     env: process.env,
   };
-}
-
-/**
- * Subcommands are dispatched before the argument parser runs, so they pick up
- * --config here. Without this, anyone with a custom catalog could not store a key
- * for a provider defined only in it.
- */
-function extractConfigPath(argv) {
-  for (let index = 0; index < argv.length; index += 1) {
-    const arg = argv[index];
-    if (arg === '--config' || arg === '-c') {
-      const value = argv[index + 1];
-      if (!value || value.startsWith('-')) throw new Error(`${arg} requires a file path`);
-      argv.splice(index, 2);
-      return value;
-    }
-    if (arg.startsWith('--config=')) {
-      const value = arg.slice('--config='.length);
-      if (!value) throw new Error('--config requires a file path');
-      argv.splice(index, 1);
-      return value;
-    }
-  }
-  return null;
 }
 
 async function resolveProvider({ config, requested, io }) {
@@ -473,6 +572,7 @@ GitHub, and /model lists the GitHub models together with your providers'.
 Options:
       --list-providers      List providers and which ones are usable already
       --native              Start Copilot without the router, GitHub models only
+      --native-byok         Use the CLI's own providers.json registry instead of the router
   -m, --model <id>          Starting model (picker id, e.g. byok-openai-gpt-5-5)
   -c, --config <path>       Provider configuration file
       --upstream <url>      Force the Copilot API tier (individual/business/enterprise)
@@ -480,6 +580,10 @@ Options:
       --dry-run             Print what would start, then exit
   -h, --help                Show this help
   -v, --version             Print the copilot-byok version
+
+Inspection:
+  copilot-byok doctor               Diagnose the installation without starting Copilot
+  copilot-byok models [provider]    List the models each provider currently serves
 
 Credentials:
   copilot-byok keys list            Show where each provider's key comes from

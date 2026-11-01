@@ -86,3 +86,15 @@ test('--upstream must be an http(s) URL and is reduced to its origin', () => {
   assert.throws(() => parseArgs(['--upstream', 'business']), /must be a URL/);
   assert.throws(() => parseArgs(['--upstream', 'ftp://example.com']), /must be an http\(s\) URL/);
 });
+
+test('--native-byok is parsed and cannot be combined with the other modes', () => {
+  const parsed = parseArgs(['--native-byok', '--no-discovery', '--model', 'byok-echo-m1', '-p', 'hello']);
+  assert.equal(parsed.nativeByok, true);
+  assert.equal(parsed.noDiscovery, true);
+  assert.equal(parsed.explicitModel, 'byok-echo-m1');
+  assert.deepEqual(parsed.copilotArgs, ['-p', 'hello']);
+
+  assert.throws(() => parseArgs(['--native-byok', '--legacy']), /cannot be combined with --legacy/);
+  assert.throws(() => parseArgs(['--native-byok', '--native']), /cannot be combined with --native/);
+  assert.throws(() => parseArgs(['--native-byok', '--upstream', 'https://api.example.com']), /only to router mode/);
+});
