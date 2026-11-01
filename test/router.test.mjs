@@ -406,14 +406,14 @@ test('when the CLI starts sending an effort, the user choice wins over the confi
   const url = `http://127.0.0.1:${router.address().port}/chat/completions`;
 
   try {
-    // Today: the CLI sends nothing, so the configured level is applied.
+    // The CLI used to send nothing, so the configured level is applied.
     await fetch(url, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ model: 'byok-acme-thinker', messages: [] }),
     });
 
-    // After the CLI is fixed: what the user picked must not be overridden.
+    // The CLI forwards what the user picked: it must not be overridden.
     await fetch(url, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -421,6 +421,105 @@ test('when the CLI starts sending an effort, the user choice wins over the confi
     });
 
     assert.deepEqual(seen, ['low', 'high']);
+  } finally {
+    router.closeAllConnections();
+    await new Promise((resolve) => router.close(resolve));
+    await new Promise((resolve) => provider.close(resolve));
+  }
+});
+
+test('a caller-sent effort the provider rejects steps down instead of looping', async () => {
+  const attempts = [];
+  const provider = http.createServer((req, res) => {
+    let body = '';
+    req.on('data', (chunk) => { body += chunk; });
+    req.on('end', () => {
+      const parsed = JSON.parse(body);
+      attempts.push(parsed.reasoning_effort);
+      if (parsed.reasoning_effort === 'xhigh') {
+        res.writeHead(400, { 'content-type': 'application/json' });
+        return res.end(JSON.stringify({ detail: 'Invalid request: reasoning_effort' }));
+      }
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ ok: true }));
+    });
+  });
+  await new Promise((resolve) => provider.listen(0, '127.0.0.1', resolve));
+
+  const events = [];
+  const catalog = buildCatalog([{
+    id: 'beta', name: 'Beta', baseUrl: `http://127.0.0.1:${provider.address().port}/v1`,
+    apiKey: 'k', models: [{ model: 'cli-effort' }],
+  }]);
+
+  const router = createRouter({
+    catalog,
+    upstream: createUpstreamResolver({ explicit: 'https://upstream.invalid' }),
+    onEvent: (event) => events.push(event),
+  });
+  await new Promise((resolve) => router.listen(0, '127.0.0.1', resolve));
+  const url = `http://127.0.0.1:${router.address().port}/chat/completions`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model: 'byok-beta-cli-effort', messages: [], reasoning_effort: 'xhigh' }),
+    });
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(attempts, ['xhigh', 'high'], 'the retry carries the fallback level');
+
+    // Remembered: the same pick goes straight to the level that worked.
+    attempts.length = 0;
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model: 'byok-beta-cli-effort', messages: [], reasoning_effort: 'xhigh' }),
+    });
+    assert.deepEqual(attempts, ['high'], 'no repeated round trip for a rejected level');
+  } finally {
+    router.closeAllConnections();
+    await new Promise((resolve) => router.close(resolve));
+    await new Promise((resolve) => provider.close(resolve));
+  }
+});
+
+test('an effort every level rejects ends with the provider error', async () => {
+  const attempts = [];
+  const provider = http.createServer((req, res) => {
+    let body = '';
+    req.on('data', (chunk) => { body += chunk; });
+    req.on('end', () => {
+      const parsed = JSON.parse(body);
+      attempts.push(parsed.reasoning_effort);
+      res.writeHead(400, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ detail: 'Invalid request: reasoning_effort' }));
+    });
+  });
+  await new Promise((resolve) => provider.listen(0, '127.0.0.1', resolve));
+
+  const catalog = buildCatalog([{
+    id: 'gamma', name: 'Gamma', baseUrl: `http://127.0.0.1:${provider.address().port}/v1`,
+    apiKey: 'k', models: [{ model: 'picky' }],
+  }]);
+
+  const router = createRouter({
+    catalog,
+    upstream: createUpstreamResolver({ explicit: 'https://upstream.invalid' }),
+  });
+  await new Promise((resolve) => router.listen(0, '127.0.0.1', resolve));
+  const url = `http://127.0.0.1:${router.address().port}/chat/completions`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model: 'byok-gamma-picky', messages: [], reasoning_effort: 'xhigh' }),
+    });
+
+    assert.equal(response.status, 400, 'the provider error reaches the client');
+    assert.deepEqual(attempts, ['xhigh', 'high', 'medium', 'low', 'minimal', 'none', undefined]);
   } finally {
     router.closeAllConnections();
     await new Promise((resolve) => router.close(resolve));

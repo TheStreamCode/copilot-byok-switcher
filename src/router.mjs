@@ -141,6 +141,7 @@ export function mergeModels(payload, entries) {
 // is stepped down until one is accepted, and the outcome is remembered so the
 // same round trip is not repeated for the rest of the session.
 const EFFORT_LADDER = ['max', 'xhigh', 'high', 'medium', 'low', 'minimal', 'none'];
+const MAX_EFFORT_ATTEMPTS = EFFORT_LADDER.length + 1;
 const rejectedEfforts = new Map();
 
 function nextEffortDown(effort) {
@@ -148,22 +149,30 @@ function nextEffortDown(effort) {
   return index === -1 || index === EFFORT_LADDER.length - 1 ? null : EFFORT_LADDER[index + 1];
 }
 
-function forwardToProvider({ req, res, payload, route, onEvent }) {
+function forwardToProvider({ req, res, payload, route, onEvent, effortOverride, attempt = 0, state = { providerReq: null } }) {
   const { provider, model } = route;
   const target = new URL(`${provider.baseUrl.replace(/\/$/, '')}/chat/completions`);
   const client = target.protocol === 'https:' ? https : http;
 
   const outbound = { ...payload, model: model.model };
 
-  // Copilot accepts a reasoning effort but never forwards it to a BYOK provider —
-  // requests sent with low and high are identical on the wire. Applying the
-  // configured level here is what makes the setting take effect at all.
-  const configured = model.reasoningEffort || provider.reasoningEffort;
-  if (configured && outbound.reasoning_effort === undefined) {
-    const rejected = rejectedEfforts.get(`${provider.id}:${model.model}`) || new Set();
-    let effort = configured;
-    while (effort && rejected.has(effort)) effort = nextEffortDown(effort);
-    if (effort) outbound.reasoning_effort = effort;
+  // The CLI now forwards the level the user picked; keep it, unless this
+  // provider already rejected that level earlier in the session. A configured
+  // level applies only when the request carries none. `effortOverride` is what
+  // the retry below uses to replace a rejected value instead of resending it.
+  const effortKey = `${provider.id}:${model.model}`;
+  if (effortOverride !== undefined) {
+    if (effortOverride === null) delete outbound.reasoning_effort;
+    else outbound.reasoning_effort = effortOverride;
+  } else {
+    const configured = model.reasoningEffort || provider.reasoningEffort;
+    let effort = outbound.reasoning_effort ?? configured;
+    if (effort) {
+      const rejected = rejectedEfforts.get(effortKey) || new Set();
+      while (effort && rejected.has(effort)) effort = nextEffortDown(effort);
+      if (effort) outbound.reasoning_effort = effort;
+      else delete outbound.reasoning_effort;
+    }
   }
   const body = Buffer.from(JSON.stringify(outbound), 'utf8');
 
@@ -190,12 +199,14 @@ function forwardToProvider({ req, res, payload, route, onEvent }) {
     },
     (providerRes) => {
       // A 400 caused by the effort is recoverable: drop a level and try again,
-      // before a single byte has reached the client.
-      if (providerRes.statusCode === 400 && outbound.reasoning_effort) {
-        const key = `${provider.id}:${model.model}`;
-        const rejected = rejectedEfforts.get(key) || new Set();
+      // before a single byte has reached the client. The rejected level is
+      // remembered for the session, and the retry must carry the replacement:
+      // the CLI sends its own level now, so replaying the original payload
+      // would resend the same value and loop forever.
+      if (providerRes.statusCode === 400 && outbound.reasoning_effort && attempt < MAX_EFFORT_ATTEMPTS) {
+        const rejected = rejectedEfforts.get(effortKey) || new Set();
         rejected.add(outbound.reasoning_effort);
-        rejectedEfforts.set(key, rejected);
+        rejectedEfforts.set(effortKey, rejected);
 
         const fallback = nextEffortDown(outbound.reasoning_effort);
         onEvent({
@@ -206,7 +217,16 @@ function forwardToProvider({ req, res, payload, route, onEvent }) {
         });
 
         providerRes.resume(); // discard the error body
-        return forwardToProvider({ req, res, payload, route, onEvent });
+        return forwardToProvider({
+          req,
+          res,
+          payload,
+          route,
+          onEvent,
+          effortOverride: fallback,
+          attempt: attempt + 1,
+          state,
+        });
       }
 
       res.writeHead(providerRes.statusCode, providerRes.headers);
@@ -219,6 +239,8 @@ function forwardToProvider({ req, res, payload, route, onEvent }) {
       });
     }
   );
+
+  state.providerReq = providerReq;
 
   providerReq.setTimeout(PROVIDER_IDLE_TIMEOUT_MS, () => {
     providerReq.destroy(new Error(`no data for ${Math.round(PROVIDER_IDLE_TIMEOUT_MS / 1000)}s`));
@@ -233,9 +255,13 @@ function forwardToProvider({ req, res, payload, route, onEvent }) {
 
   // A cancelled generation must stop the provider request too: otherwise it keeps
   // streaming, and paid providers keep billing, for an answer nobody will read.
-  res.on('close', () => {
-    if (!res.writableEnded) providerReq.destroy();
-  });
+  // Attached once per client request: retries replace the active provider
+  // request, and a listener per attempt would pile up on the response.
+  if (attempt === 0) {
+    res.on('close', () => {
+      if (!res.writableEnded) state.providerReq?.destroy();
+    });
+  }
 
   providerReq.end(body);
 }
