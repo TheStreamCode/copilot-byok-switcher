@@ -2,6 +2,41 @@
 
 All notable changes to this project are documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- **`--native-byok`** publishes the configured models through the Copilot CLI's supported
+  `providers.json` registry instead of the local router. Discovery runs as usual, a private
+  temporary registry is written and passed via `COPILOT_PROVIDERS_CONFIG`, and the file is removed
+  when the session ends. The mode needs a CLI that reads `providers.json` (verified on 1.0.105).
+  Model ids in `/model` are `provider/model`; a `--model byok-...` value is translated.
+- **`copilot-byok doctor`** diagnoses the installation in one pass: Node, the Copilot binary and
+  its version, the provider config, credentials, key store, native registry, cache and log paths,
+  shim and extension. `--json` for scripts, `--online` to query keyed providers.
+- **`copilot-byok models [provider]`** lists what each provider currently serves without starting
+  a session. `--json` and `--offline` are supported.
+- Data residency: when `COPILOT_GH_HOST` or `GH_HOST` names a `*.ghe.com` tenant, the router derives
+  `copilot-api.<tenant>.ghe.com` instead of the public Copilot hosts.
+- Legacy mode now passes `COPILOT_PROVIDER_HEADERS` (from `headers`) and
+  `COPILOT_PROVIDER_API_KEY_COMMAND` (from `apiKeyCommand`), and sets `COPILOT_PROVIDER_MODEL_ID`
+  when `catalogModelId` is configured.
+
+### Changed
+
+- The reasoning-effort selector is declared for models that report reasoning support, instead of
+  being opt-in: current CLIs forward the level to BYOK providers. It can still be hidden with
+  `reasoningEffortPicker: false`. Docs and verification evidence were updated for CLI 1.0.105.
+- Legacy mode detects a user `providers.json` that would take precedence over `COPILOT_PROVIDER_*`,
+  points the child at an empty temporary registry, and says so on stderr.
+
+### Fixed
+
+- A reasoning-effort level sent by the CLI and rejected by the provider no longer loops: the retry
+  now carries the stepped-down level instead of replaying the original request. The close listener
+  is also registered once per client request instead of once per retry.
+- `docs/troubleshooting.md` had a broken router log path.
+
 ## [2.0.1] - 2026-10-21
 
 ### Security

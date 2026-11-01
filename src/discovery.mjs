@@ -168,7 +168,6 @@ export function declaresToolSupport(entry) {
   return undefined;
 }
 
-/** Reads the context window under any of the names providers actually use. */
 /**
  * Whether the model reasons before answering. Copilot only shows its effort
  * selector for models that say so, and only then does it forward the level.
@@ -220,6 +219,7 @@ export function declaresVision(entry) {
   return Boolean(supports?.vision);
 }
 
+/** Reads the context window under any of the names providers actually use. */
 export function readContextWindow(entry) {
   return firstPositive(
     entry?.context_length,

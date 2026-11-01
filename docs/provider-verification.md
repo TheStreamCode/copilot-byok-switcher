@@ -1,6 +1,7 @@
 # Provider verification
 
-Last verified: 2026-10-14 for endpoints and model lists; end-to-end runs below are from 2026-08-12.
+Last verified: 2026-11-01 for Copilot CLI compatibility; provider endpoints and model lists
+2026-10-14; end-to-end runs below are from 2026-08-12 and 2026-11-01.
 
 This document separates three different levels of evidence, because they are not
 interchangeable:
@@ -21,6 +22,23 @@ interchangeable:
   25-second timeout. No credentials were printed.
 - Endpoint and model-list tables were re-probed on 2026-10-14 (Windows,
   Node.js 24.21, invalid-key probes, no credentials).
+- CLI compatibility was re-verified on 2026-11-01 (Windows 11, Node.js 24.21,
+  Copilot CLI 1.0.105 and 1.0.79) with an isolated `COPILOT_HOME`, mock providers
+  on loopback and no real GitHub credentials.
+
+## Copilot CLI compatibility
+
+Re-verified on 2026-11-01 against 1.0.105, with 1.0.79 as the baseline.
+
+| Area | 1.0.79 | 1.0.105 | Evidence |
+|---|---|---|---|
+| `COPILOT_API_URL` router | honoured | honoured | `GET /models` reached a local server on both; the full session completed on 1.0.105, including `POST /chat/completions` and `POST /mcp/readonly` |
+| Reasoning effort to BYOK | not sent | sent | `reasoning_effort: "high"` on the wire with native provider variables, and through the router when the model entry advertises levels |
+| Native `providers.json` registry | not loaded | loaded | two providers in one file; `--model p2/m2` reached the second base URL with its `wireModel` |
+| Extension SDK | unchanged | unchanged | the 1.0.28 SDK still exports `joinSession`, `commands`, `ui.select` and `session.log`; extensions remain experimental and were not run interactively in this audit |
+
+`COPILOT_API_URL` remains undocumented: it is not listed in `copilot help environment` on 1.0.105.
+The native registry is the supported alternative, which is why `--native-byok` exists.
 
 ## Endpoint reachability
 
@@ -112,14 +130,20 @@ Measured wall-clock for the three configured providers, queried in parallel: 1.2
 
 ## Reasoning effort
 
-Copilot's own effort setting never reaches a BYOK provider. Verified by pointing
-the router at a provider that records what it receives: the payloads produced
-with `--effort low` and `--effort high` are byte-identical, and contain no
-reasoning field at all. Declaring `reasoning_effort` in a model entry changes only
-whether the CLI accepts the flag — not what it sends.
+On CLI 1.0.79 the effort level never reached a BYOK provider: payloads produced with
+`--effort low` and `--effort high` were byte-identical and contained no reasoning
+field, in both wire formats. That was upstream
+[copilot-cli#4012](https://github.com/github/copilot-cli/issues/4012), resolved later
+in the 1.0.9x line.
 
-Providers do accept the parameter when the router adds it, and they do **not** fall
-back on their own. Measured against `zai-org/GLM-5.2-TEE` on Chutes:
+Re-verified on 1.0.105 (2026-11-01): `--reasoning-effort high` produces
+`"reasoning_effort":"high"` in the request, both with the native BYOK variables and
+through the router when the model entry declares
+`capabilities.supports.reasoning_effort`. Without that declaration the CLI rejects
+the flag before sending anything.
+
+Providers accept the parameter when it arrives, and they do **not** fall back on
+their own. Measured against `zai-org/GLM-5.2-TEE` on Chutes:
 
 | `reasoning_effort` | Result |
 |---|---|
@@ -128,16 +152,8 @@ back on their own. Measured against `zai-org/GLM-5.2-TEE` on Chutes:
 | `banana` (control) | 400 validation error |
 
 So a level that a model does not accept breaks every request to it, which is why
-the router steps the level down until one is accepted and remembers the outcome.
-
-The level was not delivered in any configuration tried on CLI 1.0.79: router mode
-with the capability declared, the official BYOK variables over chat-completions,
-the same over the responses wire format, model ids `gpt-5.4`, `gpt-5.5`,
-`gpt-5.6-sol`, `claude-sonnet-4.6` and `gemini-3.1-pro-preview`, and
-`COPILOT_OFFLINE=true` (the workaround reported in copilot-cli#3119). Declaring
-`supported_endpoints: ['/responses']` does make the CLI switch to that format —
-observed request keys: `include, input, instructions, model, parallel_tool_calls,
-store, text, tools` — but still with no reasoning field.
+the router steps the level down until one is accepted and remembers the outcome,
+including when the level came from the CLI rather than from the config.
 
 ## End-to-end
 
@@ -163,11 +179,23 @@ works — the errors came back from the provider, through the router, unchanged:
 | OpenCode Zen / Go | `Insufficient balance` |
 | Alibaba Token Plan | `Your token-plan 1-week quota has been exhausted` |
 
+### Native registry path
+
+On 2026-11-01, `copilot-byok --native-byok` ran on CLI 1.0.105 with an isolated
+`COPILOT_HOME` and no GitHub credentials, against a local OpenAI-compatible mock.
+The generated `providers.json` was accepted, Copilot sent
+`POST /v1/chat/completions` with the pinned model name, used the reply, and the
+temporary registry was gone after exit. This verifies the registry shape and the
+cleanup path, not a real provider's inference.
+
 ## Reproducing
 
 ```sh
+copilot-byok doctor                    # installation and CLI version
 copilot-byok --list-providers          # which providers your keys activate
+copilot-byok models --offline          # what discovery would publish, no network
 copilot-byok --dry-run                 # router URL and published model ids
+copilot-byok --native-byok --dry-run   # native registry: providers and selection ids
 copilot-byok -- -p "read README.md and summarise it" --allow-all-tools
 ```
 

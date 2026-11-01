@@ -31,21 +31,31 @@ Model changed to: byok-anthropic-claude-sonnet-4-6 for this session
 
 ## Why this exists
 
-Copilot CLI does support BYOK out of the box, through `COPILOT_PROVIDER_BASE_URL`. That path has
-three limits this project removes:
+Copilot CLI has two built-in ways to use your own models.
 
-| | Built-in BYOK | Copilot BYOK Switcher |
-| --- | --- | --- |
-| Providers per session | one | as many as you configure |
-| `/model` picker | shows nothing to choose from | your models listed with GitHub's |
-| GitHub models | unavailable while BYOK is on | still there, same session |
-| Switching model | restart with new env vars | `/model` inside the session |
+The `COPILOT_PROVIDER_*` variables point the whole session at one provider. That path still has the
+limits this project was built for: one provider per session, no provider list in `/model`, GitHub
+models unavailable.
 
-Bringing your **own key** for OpenAI, Anthropic or Gemini is not possible natively on personal
-accounts at all — GitHub reserves that for enterprise owners, who get custom models in the
-picker. On a personal plan those vendors appear in the picker but are served by GitHub's own
-subscription: they consume premium requests and follow your plan's restrictions. On the free plan
-most of them are visible yet unusable.
+The `providers.json` registry is the better supported path: multiple providers and models, listed
+in `/model` next to GitHub's, with the CLI talking to each provider itself. It still asks you to
+write every endpoint and model by hand, stores the keys as plain text in that file, and needs a
+restart after edits. Ollama is the exception: the CLI discovers local Ollama models on its own.
+
+This project sits on top of both: it asks each provider what it serves now, ships endpoints for 28
+of them, keeps credentials in environment variables or the opt-in key store, and can feed the
+native registry from the same discovery. The default mode remains the local router, which was
+verified to keep working on CLI 1.0.105 and supports older CLIs as well.
+
+| | `COPILOT_PROVIDER_*` | `providers.json` | This project |
+| --- | --- | --- | --- |
+| Providers per session | one | as many as configured | as many as configured |
+| `/model` picker | one fixed model | your models next to GitHub's | your models next to GitHub's |
+| GitHub models | unavailable | available | available |
+| Model lists | you write them | you write them (Ollama is discovered) | discovered from each provider |
+| Credentials | environment | plain text in the file | environment or key store |
+| Local proxy | no | no | router mode only |
+| Works on older CLIs | yes | newer releases only | yes, via the router |
 
 ## The router
 
@@ -70,6 +80,19 @@ loopback and shuts down when Copilot exits.
 
 > [!IMPORTANT]
 > `COPILOT_API_URL` is an internal variable — it is not listed in `copilot help environment`. It
-> works today (verified on CLI 1.0.79) but GitHub may rename or change it. If your models ever
-> vanish from the picker, that is the first thing to check, and `copilot-byok --native` always
-> gets you back to a stock session.
+> worked on CLI 1.0.79 and still worked on 1.0.105 when this project was re-verified on 2026-11-01,
+> but GitHub may rename or change it. If your models ever vanish from the picker, that is the first
+> thing to check, `copilot-byok doctor` reports the CLI version it found, and `copilot-byok
+> --native` always gets you back to a stock session.
+
+## Native registry mode
+
+`copilot-byok --native-byok` publishes the same models through the CLI's supported BYOK registry
+instead of the router. It runs the usual live discovery, writes a temporary `providers.json`, points
+`COPILOT_PROVIDERS_CONFIG` at it, starts Copilot, and deletes the file when the session ends. There
+is no local proxy and no dependency on `COPILOT_API_URL`.
+
+The trade-off is the one the registry itself imposes: provider keys are in that temporary file while
+the session runs. The file is created in the system temp directory with owner-only permissions and
+removed on exit, including when the session fails to start. Model ids are `provider/model`; a
+`--model byok-...` value is translated to the matching native id.
