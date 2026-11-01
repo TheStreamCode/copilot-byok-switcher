@@ -90,8 +90,15 @@ pointing at it. Requirements:
 - model ids in `/model` are `provider/model`; `--model byok-...` is translated for you.
 
 If the session fails immediately, run `copilot-byok --native-byok --dry-run` to see the providers
-and selection ids that would be written. The temporary file is removed when Copilot exits, and a
-`providers.json` you maintain yourself is ignored for that session.
+and selection ids that would be written. The temporary file is removed on normal exit, on failure to
+start, and on Ctrl+C or a termination signal; after a hard kill, stale registries are removed at the
+next native startup. A `providers.json` you maintain yourself is ignored for that session.
+
+## `apiKeyCommand` is ignored
+
+A provider that only has an `apiKeyCommand` works with `--legacy` and needs Copilot CLI 1.0.84 or
+newer. Router mode and `--native-byok` cannot use it: the CLI's `providers.json` registry has no
+credential-command equivalent. `--list-providers` marks such providers as `apiKeyCommand (--legacy only)`.
 
 ## `Unknown BYOK model`
 
