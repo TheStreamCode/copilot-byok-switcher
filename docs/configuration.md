@@ -154,8 +154,8 @@ both are handled. `copilot-byok shim status` says which mechanism is actually in
 ## Reasoning effort
 
 Current Copilot CLIs forward the level you pick to BYOK providers. Verified on 1.0.105, both through
-the router and with the native registry. This was not true on 1.0.79, where the payloads with `low`
-and with `high` were byte-identical: that was the CLI bug tracked in
+the router and with the CLI's own provider variables. This was not true on 1.0.79, where the payloads
+with `low` and with `high` were byte-identical: that was the CLI bug tracked in
 [copilot-cli#4012](https://github.com/github/copilot-cli/issues/4012), resolved upstream.
 
 The effort selector is therefore declared for models that report reasoning support, and can be

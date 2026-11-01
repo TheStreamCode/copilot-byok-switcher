@@ -8,12 +8,12 @@ import test from 'node:test';
 import { runModelsCommand } from '../src/models-command.mjs';
 
 test('lists pinned models without touching the network in offline mode', async () => {
-  const { configPath } = await fixture();
+  const { configPath, env } = await fixture();
   const stdout = captureWritable();
 
   const exitCode = await runModelsCommand({
     argv: ['--offline', '--config', configPath],
-    io: { stdout, stderr: captureWritable(), env: { TEST_PROVIDER_KEY: 'secret' } },
+    io: { stdout, stderr: captureWritable(), env },
   });
 
   assert.equal(exitCode, 0);
@@ -24,12 +24,12 @@ test('lists pinned models without touching the network in offline mode', async (
 });
 
 test('--json is machine-readable and can be filtered by provider', async () => {
-  const { configPath } = await fixture();
+  const { configPath, env } = await fixture();
   const stdout = captureWritable();
 
   const exitCode = await runModelsCommand({
     argv: ['--offline', '--json', 'echo', '--config', configPath],
-    io: { stdout, stderr: captureWritable(), env: { TEST_PROVIDER_KEY: 'secret' } },
+    io: { stdout, stderr: captureWritable(), env },
   });
 
   assert.equal(exitCode, 0);
@@ -46,12 +46,12 @@ test('--json is machine-readable and can be filtered by provider', async () => {
 });
 
 test('an unknown provider is rejected', async () => {
-  const { configPath } = await fixture();
+  const { configPath, env } = await fixture();
 
   await assert.rejects(
     () => runModelsCommand({
       argv: ['--offline', 'missing', '--config', configPath],
-      io: { stdout: captureWritable(), stderr: captureWritable(), env: {} },
+      io: { stdout: captureWritable(), stderr: captureWritable(), env },
     }),
     /Unknown provider: missing/,
   );
@@ -79,7 +79,14 @@ async function fixture() {
     ],
   }));
 
-  return { configPath };
+  return {
+    configPath,
+    env: {
+      TEST_PROVIDER_KEY: 'secret',
+      COPILOT_BYOK_KEYSTORE: join(dir, 'keys.json'),
+      COPILOT_BYOK_MODEL_CACHE: join(dir, 'models.json'),
+    },
+  };
 }
 
 function captureWritable() {

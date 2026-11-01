@@ -188,7 +188,7 @@ function checkKeystore({ add, secrets, env }) {
 async function checkNativeRegistry({ add, env }) {
   const native = await inspectNativeRegistry(env);
   if (native.error) {
-    add('warn', 'native registry', `${nativeRegistryPath(env)}: ${native.error}`);
+    add('warn', 'native registry', `${native.path}: ${native.error}`);
     return;
   }
   if (!native.present) {

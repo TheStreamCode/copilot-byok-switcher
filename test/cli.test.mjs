@@ -668,7 +668,10 @@ test('native BYOK dry-run publishes selection ids and translates picker ids', as
     stdin: { isTTY: false },
     stdout: output,
     stderr: captureWritable(),
-    env: {},
+    env: {
+      COPILOT_BYOK_KEYSTORE: join(dir, 'keys.json'),
+      COPILOT_BYOK_MODEL_CACHE: join(dir, 'models.json'),
+    },
   });
 
   assert.equal(exitCode, 0);
@@ -702,7 +705,11 @@ test('legacy mode isolates a native registry that would take precedence', async 
     stdin: { isTTY: false },
     stdout: output,
     stderr,
-    env: { COPILOT_HOME: home },
+    env: {
+      COPILOT_HOME: home,
+      COPILOT_BYOK_KEYSTORE: join(dir, 'keys.json'),
+      COPILOT_BYOK_MODEL_CACHE: join(dir, 'models.json'),
+    },
   });
 
   assert.equal(exitCode, 0);
