@@ -1,5 +1,12 @@
 # Troubleshooting
 
+## Run `doctor` first
+
+`copilot-byok doctor` checks Node, the Copilot binary and its version, the provider config,
+credentials, the key store, the native registry, the log paths, the shim and the extension in one
+pass. Add `--json` for scripts and `--online` to query the providers that have a key. It never
+starts Copilot and never prints a credential.
+
 ## `copilot` starts, but without the BYOK models
 
 Plain `copilot` is GitHub's CLI and knows nothing about your providers. Either run
@@ -60,6 +67,32 @@ Please open an issue with that version number. Meanwhile `copilot-byok --native`
 runs a stock session, and `--legacy` still gives you one BYOK provider through the
 officially documented `COPILOT_PROVIDER_*` variables.
 
+## `--legacy` used a different provider than the one I picked
+
+`~/.copilot/providers.json` (or the file named by `COPILOT_PROVIDERS_CONFIG`) takes precedence over
+the `COPILOT_PROVIDER_*` variables. Legacy mode notices that and hands the child an empty temporary
+registry, printing:
+
+```text
+copilot-byok: ... would take precedence over COPILOT_PROVIDER_*; using an empty registry for this session.
+```
+
+If the line is missing and the wrong provider answered, check the path named by
+`COPILOT_PROVIDERS_CONFIG` in your shell.
+
+## `--native-byok` fails or lists nothing
+
+Native mode writes a temporary `providers.json` and starts Copilot with `COPILOT_PROVIDERS_CONFIG`
+pointing at it. Requirements:
+
+- a Copilot CLI release that reads `providers.json` (verified on 1.0.105);
+- at least one active provider after discovery, or the mode falls back to a stock session;
+- model ids in `/model` are `provider/model`; `--model byok-...` is translated for you.
+
+If the session fails immediately, run `copilot-byok --native-byok --dry-run` to see the providers
+and selection ids that would be written. The temporary file is removed when Copilot exits, and a
+`providers.json` you maintain yourself is ignored for that session.
+
 ## `Unknown BYOK model`
 
 The catalog changed while a session was running — for example after editing your
@@ -89,7 +122,8 @@ The list comes from the provider itself. Three things can hide a model:
   of the picker. The log says which and why.
 
 Results are cached for ten minutes, so a model added upstream may take that long
-to appear — restart to pick it up immediately.
+to appear — restart to pick it up immediately. `--native-byok` uses the same discovery and the same
+filters; `copilot-byok models` prints exactly what would be published.
 
 ## A provider returns 404 on a model
 
@@ -145,6 +179,11 @@ or set `COPILOT_BYOK_UPSTREAM`. Note that Copilot Enterprise owners can add cust
 models natively from enterprise settings, which shows them in the picker without
 this tool.
 
+On **GitHub Enterprise Cloud with data residency** the Copilot API lives at
+`copilot-api.<tenant>.ghe.com`, not on the public hosts. The router derives it from
+`COPILOT_GH_HOST` or `GH_HOST` when the host ends in `.ghe.com`; if your setup differs,
+pass `--upstream https://copilot-api.<tenant>.ghe.com` explicitly.
+
 ## Ollama or LM Studio returns nothing
 
 Both ship disabled in the catalog because they have no keys to detect. Add them in
@@ -158,20 +197,21 @@ curl http://127.0.0.1:1234/v1/models     # LM Studio
 
 ## Setting the reasoning effort has no effect
 
-Copilot's `--effort` flag and its effort selector do not reach BYOK providers —
-the level never leaves the CLI. Set it per model instead:
+Current Copilot CLIs forward the level to BYOK providers; this was not true on
+1.0.79, where the payload was the same for `low` and `high`
+([copilot-cli#4012](https://github.com/github/copilot-cli/issues/4012), fixed later).
+If the selector is missing, check that the model reports reasoning support and that
+`reasoningEffortPicker` is not set to `false`.
+
+If the provider rejects the level, the router steps down automatically for a level from the picker
+as well as one from the configuration, and says so in the log. To force a level, set it per model:
 
 ```json
 { "model": "deepseek-reasoner", "reasoningEffort": "high" }
 ```
 
-If a model rejects that level the router steps down automatically and says so in
-the log, so a wrong value degrades rather than breaking every request.
-
-The selector is missing from `/model` on purpose: on CLI 1.0.79 the level it
-returns never reaches the provider (github/copilot-cli#4012). Enable it with
-`reasoningEffortPicker: true` once that is fixed — the router already honours an
-incoming level, so nothing else needs changing.
+In `--native-byok` mode the CLI talks to the provider directly, so there is no
+step-down: set `reasoningEffortLevels` to the levels the model really accepts.
 
 ## A request hangs
 
@@ -193,8 +233,7 @@ copilot-byok: 3 router errors during this session — see ~/.config/copilot-byok
 
 The log records forwarded requests, model injections and errors, with a timestamp
 and the process id. Credentials are never written to it. On Windows it lives in
-`%APPDATA%\copilot-byok
-outer.log`; `COPILOT_BYOK_LOG` overrides the path, and
+`%APPDATA%\copilot-byok\router.log`; `COPILOT_BYOK_LOG` overrides the path, and
 the file is truncated once it passes 2 MB.
 
 To watch events live instead — accepting that the display will be disturbed:

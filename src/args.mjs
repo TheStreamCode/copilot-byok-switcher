@@ -11,6 +11,7 @@ export function parseArgs(argv) {
     help: false,
     version: false,
     legacy: false,
+    nativeByok: false,
     listProviders: false,
     noDiscovery: false,
     upstream: null,
@@ -37,6 +38,12 @@ export function parseArgs(argv) {
 
     if (arg === '--native') {
       result.providerName = 'native';
+      continue;
+    }
+
+    // Uses the CLI's own BYOK registry instead of the local router.
+    if (arg === '--native-byok') {
+      result.nativeByok = true;
       continue;
     }
 
@@ -151,6 +158,18 @@ export function parseArgs(argv) {
 
   if (result.providerName === 'native' && (result.offline || result.wireApi)) {
     throw new Error('--offline and --wire-api require a BYOK provider');
+  }
+
+  if (result.nativeByok && result.legacy) {
+    throw new Error('--native-byok cannot be combined with --legacy');
+  }
+
+  if (result.nativeByok && result.providerName === 'native') {
+    throw new Error('--native-byok cannot be combined with --native');
+  }
+
+  if (result.nativeByok && result.upstream) {
+    throw new Error('--upstream applies only to router mode; --native-byok talks to the providers directly');
   }
 
   // These only mean something to the single-provider flow. Accepting them in

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { Readable, Writable } from 'node:stream';
 import test from 'node:test';
 
@@ -648,6 +648,77 @@ test('explains how to install Copilot CLI when the binary is missing', async () 
     }),
     /Could not launch GitHub Copilot CLI/
   );
+});
+
+test('native BYOK dry-run publishes selection ids and translates picker ids', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'copilot-byok-native-byok-'));
+  const configPath = join(dir, 'providers.json');
+  await writeFile(configPath, JSON.stringify({
+    providers: [{
+      id: 'echo',
+      name: 'Echo',
+      baseUrl: 'http://127.0.0.1:1/v1',
+      authRequired: false,
+      models: [{ model: 'm1', contextWindow: 128000, maxOutputTokens: 32000 }],
+    }],
+  }));
+
+  const output = captureWritable();
+  const exitCode = await main(['--native-byok', '--no-discovery', '--dry-run', '--model', 'byok-echo-m1', '--config', configPath], {
+    stdin: { isTTY: false },
+    stdout: output,
+    stderr: captureWritable(),
+    env: {
+      COPILOT_BYOK_KEYSTORE: join(dir, 'keys.json'),
+      COPILOT_BYOK_MODEL_CACHE: join(dir, 'models.json'),
+    },
+  });
+
+  assert.equal(exitCode, 0);
+  const plan = JSON.parse(output.text());
+  assert.equal(plan.mode, 'native-byok');
+  assert.deepEqual(plan.providers, ['echo']);
+  assert.deepEqual(plan.models, ['echo/m1']);
+  assert.deepEqual(plan.args, ['--model', 'echo/m1']);
+});
+
+test('legacy mode isolates a native registry that would take precedence', async () => {
+  const home = await mkdtemp(join(tmpdir(), 'copilot-byok-legacy-home-'));
+  const dir = await mkdtemp(join(tmpdir(), 'copilot-byok-legacy-'));
+  const configPath = join(dir, 'providers.json');
+  await writeFile(configPath, JSON.stringify({
+    providers: [{
+      id: 'echo',
+      name: 'Echo',
+      baseUrl: 'http://127.0.0.1:1/v1',
+      authRequired: false,
+    }],
+  }));
+  await writeFile(join(home, 'providers.json'), JSON.stringify({
+    providers: [{ name: 'native', baseUrl: 'https://api.example.com/v1' }],
+    models: [{ id: 'm', provider: 'native' }],
+  }));
+
+  const output = captureWritable();
+  const stderr = captureWritable();
+  const exitCode = await main(['--legacy', '--provider', 'echo', '--model', 'm1', '--dry-run', '--config', configPath], {
+    stdin: { isTTY: false },
+    stdout: output,
+    stderr,
+    env: {
+      COPILOT_HOME: home,
+      COPILOT_BYOK_KEYSTORE: join(dir, 'keys.json'),
+      COPILOT_BYOK_MODEL_CACHE: join(dir, 'models.json'),
+    },
+  });
+
+  assert.equal(exitCode, 0);
+  assert.match(stderr.text(), /would take precedence over COPILOT_PROVIDER_\*/);
+  const plan = JSON.parse(output.text());
+  assert.ok(plan.env.COPILOT_PROVIDERS_CONFIG, 'the child gets an empty registry');
+  const registryDir = dirname(plan.env.COPILOT_PROVIDERS_CONFIG);
+  await assert.rejects(() => stat(plan.env.COPILOT_PROVIDERS_CONFIG));
+  await assert.rejects(() => stat(registryDir));
 });
 
 function captureWritable({ isTTY = false } = {}) {

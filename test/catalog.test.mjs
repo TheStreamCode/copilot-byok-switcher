@@ -120,31 +120,38 @@ test('models whose names collide are reported rather than dropped in silence', (
   assert.match(events[0].message, /collide as byok-p-gpt-4-1/);
 });
 
-test('the effort selector is declared only when explicitly enabled', () => {
+test('the effort selector is declared for reasoning models unless disabled', () => {
   const base = { id: 'p', name: 'P', baseUrl: 'https://x.test/v1', apiKey: 'k' };
 
-  const off = buildCatalog([{ ...base, models: [{ model: 'm', reasoning: true }] }]);
-  assert.equal(off.entries[0].capabilities.supports.reasoning_effort, undefined,
-    'a selector that changes nothing must not appear');
+  const on = buildCatalog([{ ...base, models: [{ model: 'm', reasoning: true }] }]);
+  assert.deepEqual(on.entries[0].capabilities.supports.reasoning_effort, ['low', 'medium', 'high'],
+    'current CLIs forward the level, so the selector is meaningful by default');
 
-  const on = buildCatalog([{ ...base, models: [{ model: 'm', reasoning: true, reasoningEffortPicker: true }] }]);
-  assert.deepEqual(on.entries[0].capabilities.supports.reasoning_effort, ['low', 'medium', 'high']);
+  const off = buildCatalog([{ ...base, models: [{ model: 'm', reasoning: true, reasoningEffortPicker: false }] }]);
+  assert.equal(off.entries[0].capabilities.supports.reasoning_effort, undefined,
+    'the selector can still be turned off explicitly');
 
   const custom = buildCatalog([{
     ...base,
-    models: [{ model: 'm', reasoning: true, reasoningEffortPicker: true, reasoningEffortLevels: ['low', 'high', 'max'] }],
+    models: [{ model: 'm', reasoning: true, reasoningEffortLevels: ['low', 'high', 'max'] }],
   }]);
   assert.deepEqual(custom.entries[0].capabilities.supports.reasoning_effort, ['low', 'high', 'max']);
 });
 
 test('the provider-level switch applies to its models', () => {
-  const { entries } = buildCatalog([{
+  const enabled = buildCatalog([{
     id: 'p', name: 'P', baseUrl: 'https://x.test/v1', apiKey: 'k',
-    reasoningEffortPicker: true,
     models: [{ model: 'thinker', reasoning: true }, { model: 'plain' }],
   }]);
-
-  assert.ok(entries.find((e) => e.id.endsWith('thinker')).capabilities.supports.reasoning_effort);
-  assert.equal(entries.find((e) => e.id.endsWith('plain')).capabilities.supports.reasoning_effort, undefined,
+  assert.ok(enabled.entries.find((e) => e.id.endsWith('thinker')).capabilities.supports.reasoning_effort);
+  assert.equal(enabled.entries.find((e) => e.id.endsWith('plain')).capabilities.supports.reasoning_effort, undefined,
     'a model that does not reason never gets the selector');
+
+  const disabled = buildCatalog([{
+    id: 'q', name: 'Q', baseUrl: 'https://x.test/v1', apiKey: 'k',
+    reasoningEffortPicker: false,
+    models: [{ model: 'thinker', reasoning: true }],
+  }]);
+  assert.equal(disabled.entries[0].capabilities.supports.reasoning_effort, undefined,
+    'a provider-level false disables it for every model');
 });

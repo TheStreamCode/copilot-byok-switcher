@@ -2,7 +2,8 @@
 
 Every provider below is reached through its OpenAI-compatible endpoint, verified reachable at
 release time. A provider activates only when its key is present, so the `/model` picker stays as
-short as your setup.
+short as your setup. The same list feeds both modes: the router, and `--native-byok`, which publishes
+them through the CLI's own `providers.json` registry.
 
 | Provider | Env var | Provider | Env var |
 | --- | --- | --- | --- |
@@ -46,11 +47,16 @@ No entry ships a model list: the picker is filled by live discovery. To pin exac
 — for an offline setup or a fixed line-up — add them in your own configuration; see
 [configuration](configuration.md).
 
+Ollama and LM Studio ship disabled because they have no key to detect, and current Copilot CLIs
+discover local Ollama models themselves. Configure the local server explicitly to use it through
+this tool, or add the model from the CLI's own picker.
+
 ## Where the model list comes from
 
 **Providers are asked directly.** At startup each configured provider is queried for the models it
 serves right now, so the picker shows today's line-up rather than whatever was pinned at release
-time — a model released this morning is there this morning. All 28 providers expose an
+time — a model released this morning is there this morning. The same discovery fills the native
+registry in `--native-byok` mode. All 28 providers expose an
 OpenAI-style `GET /models` (verified in [provider verification](provider-verification.md)); the
 ones that also publish capabilities (Chutes, OpenRouter, NIM and others) supply the real context
 window, output limit and tool-calling support along with it.
@@ -71,6 +77,9 @@ three configured providers: about a second. Results are cached for ten minutes, 
 Anything the provider does not report falls back to conservative defaults (128k context, 32k
 output); image input and the reasoning selector appear only when the provider's own metadata
 declares them.
+
+To see the same result without opening a session, run `copilot-byok models [provider]`; add
+`--json` for scripts or `--offline` to print pinned and remembered lists without a network request.
 
 If a request fails — a rate limit, a blip, an expired key — the list that key returned last time
 is used instead, kept in `~/.cache/copilot-byok/models.json` (`%LOCALAPPDATA%` on Windows). That

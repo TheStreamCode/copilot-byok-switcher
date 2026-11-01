@@ -15,6 +15,11 @@ the matching provider, and passes everything else through to GitHub unchanged. T
 interception. It never modifies the user's shell profile, and it writes credentials to disk only
 through the opt-in key store (`copilot-byok keys set` or `/byok`), never on its own initiative.
 
+`--native-byok` publishes the same models through the CLI's supported `providers.json` registry
+instead: discovery runs as usual, a private temporary registry is written, `COPILOT_PROVIDERS_CONFIG`
+points at it for the child process, and it is deleted when the session ends. That file contains the
+provider credentials for the session, which is why the mode stays opt-in.
+
 `COPILOT_API_URL` is an internal Copilot CLI variable, absent from `copilot help environment`.
 Treat it as the project's main external risk: if a CLI release changes it, the router breaks and
 `--native` / `--legacy` are the fallbacks. Do not assume other undocumented variables exist —
@@ -43,19 +48,27 @@ There is no VS Code extension, no bundler, no compiled output, and no hosted dep
 ```text
 bin/copilot-byok.mjs      Executable entry point; only wires main() to process.exitCode
 src/args.mjs              Pure argument parser; no I/O
-src/cli.mjs               Orchestration: router mode (default), legacy mode, native mode
+src/argv-config.mjs       Pure --config extraction for subcommands
+src/cli.mjs               Orchestration: router mode (default), native registry mode, legacy mode
 src/router.mjs            The local proxy: model injection, provider routing, passthrough
 src/catalog.mjs           Turns providers into the model entries Copilot expects from GET /models
 src/launcher.mjs          Starts the router on an ephemeral port and spawns Copilot against it
-src/upstream.mjs          Resolves the Copilot API tier (individual / business / enterprise)
+src/upstream.mjs          Resolves the Copilot API tier (individual / business / enterprise, data residency)
 src/discovery.mjs         Asks each provider for its live model list; falls back to the remembered list
+src/model-cache.mjs       Remembers the last model list each provider returned
+src/models-auth.mjs       Scopes provider credentials to the catalog origin (pure)
 src/config.mjs            Provider config loading and validation; loads providers.default.json
 src/providers.default.json  Generated catalog — never edit by hand, run npm run catalog:update
+src/native-registry.mjs   Pure translation of providers into the CLI's providers.json registry
+src/registry-file.mjs     Reads/writes the native registry; private temp file for one session
 src/keystore.mjs          Optional on-disk key store (0600 / owner-only ACL)
 src/keys-command.mjs      `copilot-byok keys ...`
+src/doctor.mjs            `copilot-byok doctor`; installation diagnostics
+src/models-command.mjs    `copilot-byok models`; discovery output without a session
 src/extension-install.mjs `copilot-byok extension ...`; rewrites the template's package root
 src/shim-install.mjs      `copilot-byok shim ...`; writes the per-platform `copilot` shim
 src/session-log.mjs       Router diagnostics to a file, never over Copilot's TUI
+src/progress.mjs          Startup activity line (TTY only)
 src/copilot-bin.mjs       Resolves the Copilot executable, skipping the stale VS Code shim
 src/model-ranking.mjs     Pure ranking of provider model catalogs (legacy mode)
 src/process-env.mjs       Strips stale/secret variables from the child environment
@@ -68,8 +81,8 @@ schemas/providers.schema.json  Published JSON Schema for providers.json
 examples/providers.example.json  Documented example configuration
 docs/provider-verification.md    Evidence matrix for provider claims
 docs/providers.md               Provider table, keys, model discovery, the /byok command
-docs/configuration.md           Custom providers.json, commands, environment variables, shim, reasoning effort
-docs/how-it-works.md            Router design, COPILOT_API_URL dependency, picker behavior
+docs/configuration.md           Custom providers.json, native registry mode, commands, environment variables, shim, reasoning effort
+docs/how-it-works.md            Router design, native registry mode, COPILOT_API_URL dependency, picker behavior
 docs/troubleshooting.md         Failure modes and diagnostics
 ```
 
@@ -96,8 +109,9 @@ There is no `dev`, `build`, `format`, or `type-check` script. Do not invent one 
 
 - Two-space indentation, single quotes, semicolons, trailing commas in multiline literals.
 - Named exports only; no default exports outside `bin/`.
-- Modules stay small and single-purpose. `args.mjs`, `model-ranking.mjs`, `provider-env.mjs`, and
-  `process-env.mjs` must remain **pure** (no file, network, or process access) so they stay trivially testable.
+- Modules stay small and single-purpose. `args.mjs`, `argv-config.mjs`, `catalog.mjs`,
+  `model-ranking.mjs`, `models-auth.mjs`, `native-registry.mjs`, `process-env.mjs`, and
+  `provider-env.mjs` must remain **pure** (no file, network, or process access) so they stay trivially testable.
 - All I/O is injected through the `io` object (`{ stdin, stdout, stderr, env }`) passed to `main()`.
   Never read `process.env` or write to `process.stdout` directly from `src/` outside the documented defaults.
 - Errors are thrown as `Error` with actionable messages; `bin/copilot-byok.mjs` prints them prefixed with
@@ -130,6 +144,12 @@ This project handles third-party provider API keys. Every change must preserve t
 - Catalog requests must keep a bounded timeout (`AbortSignal.timeout`, default 10 s, configurable 10–300000 ms).
 - No `.env` file is used or expected; there is no `.env.example`. Do not add one.
 - Never commit real keys, tokens, or a `providers.json` containing credentials.
+- `--native-byok` writes provider credentials to a temporary registry because the CLI's supported
+  path requires them inline. That file must keep `0600` (owner-only ACL on Windows), live in the
+  system temp directory, and be removed on exit, including on failure. It must never be written to
+  the repository or to the user's Copilot config directory.
+- `--legacy` must keep isolating itself from a user `providers.json` when one is present: that file
+  takes precedence over `COPILOT_PROVIDER_*`, and silently using it would break the mode.
 
 ## Adding or changing a built-in provider
 
@@ -173,7 +193,8 @@ that had already been verified working.
 ## Compatibility and anti-breaking-change rules
 
 - The CLI contract is public: existing flags, aliases, provider ids, and the `--dry-run` JSON shape must keep
-  working. Add options; do not rename or remove them.
+  working. Add options; do not rename or remove them. `--native-byok`, `doctor`, and `models` are additive;
+  the existing `--dry-run` shapes keep their keys, and the new native mode reports `"mode": "native-byok"`.
 - Unrecognized arguments and everything after `--` are forwarded verbatim to Copilot CLI. Do not start
   consuming new argument names without documenting the change in the README, the relevant `docs/` page, and
   `CHANGELOG.md`.

@@ -99,6 +99,7 @@ function normalizeProvider(provider, env, index, secrets = {}) {
     : requiredString(provider.azureApiVersion, `Provider ${name} azureApiVersion must be a non-empty string`);
   const modelIncludePrefixes = normalizeStringList(provider.modelIncludePrefixes, name, 'modelIncludePrefixes');
   const modelExcludePrefixes = normalizeStringList(provider.modelExcludePrefixes, name, 'modelExcludePrefixes');
+  const apiKeyCommand = normalizeApiKeyCommand(provider.apiKeyCommand, name);
 
   if (Object.hasOwn(provider, 'apiKey')) {
     throw new Error(`Inline apiKey is not allowed for provider ${name}. Use apiKeyEnv instead.`);
@@ -129,6 +130,7 @@ function normalizeProvider(provider, env, index, secrets = {}) {
     ...(azureApiVersion ? { azureApiVersion } : {}),
     ...(modelIncludePrefixes ? { modelIncludePrefixes } : {}),
     ...(modelExcludePrefixes ? { modelExcludePrefixes } : {}),
+    ...(apiKeyCommand ? { apiKeyCommand } : {}),
     // The environment wins over the optional key store, so a shell variable can
     // always override a stored key for one session.
     apiKey: readFirstEnv(env, apiKeyEnv) ?? secrets[id] ?? null,
@@ -150,6 +152,9 @@ function normalizeModels(value, providerName) {
 
     const model = requiredString(entry.model, `${where} requires a model name`);
     if (entry.reasoningEffort != null) validateEffort(entry.reasoningEffort, where);
+    if (entry.reasoningEffortPicker != null && typeof entry.reasoningEffortPicker !== 'boolean') {
+      throw new Error(`${where} reasoningEffortPicker must be a boolean`);
+    }
     if (entry.reasoningEffortLevels != null) {
       if (!Array.isArray(entry.reasoningEffortLevels) || entry.reasoningEffortLevels.length === 0) {
         throw new Error(`${where} reasoningEffortLevels must be a non-empty array`);
@@ -180,6 +185,9 @@ function validateEffort(value, where) {
 
 function validateProviderOptions(provider, name, type) {
   if (provider.reasoningEffort != null) validateEffort(provider.reasoningEffort, `Provider ${name}`);
+  if (provider.reasoningEffortPicker != null && typeof provider.reasoningEffortPicker !== 'boolean') {
+    throw new Error(`Provider ${name} reasoningEffortPicker must be a boolean`);
+  }
   for (const field of ['catalogModelId', 'defaultModel']) {
     if (provider[field] != null) requiredString(provider[field], `Provider ${name} ${field} must be a non-empty string`);
   }
@@ -254,6 +262,12 @@ function rejectSecretModelHeaders(provider, name) {
 
   for (const { key, label } of fields) {
     for (const [headerName, value] of Object.entries(provider[key] || {})) {
+      // These reach an HTTP client or the newline-separated
+      // COPILOT_PROVIDER_HEADERS variable: a line break would smuggle an
+      // extra header into the request.
+      if (/[\r\n]/.test(headerName) || /[\r\n]/.test(value)) {
+        throw new Error(`Provider ${name} ${label} must not contain line breaks`);
+      }
       const combined = `${headerName}: ${value}`;
       if (/authorization|cookie|session|credential|password|api[-_]?key|token|secret|bearer|x-auth/i.test(combined)) {
         throw new Error(`Secret ${label} are not allowed for provider ${name}. Use apiKeyEnv or bearerTokenEnv instead.`);
@@ -307,6 +321,16 @@ function normalizeStringList(value, providerName, field) {
     `Provider ${providerName} ${field} must contain non-empty strings`
   ));
   return [...new Set(normalized)];
+}
+
+/**
+ * A command the CLI runs to obtain a fresh credential for each request. It is
+ * passed through, never executed here: in legacy mode it becomes
+ * COPILOT_PROVIDER_API_KEY_COMMAND. It must stay a command, not a credential.
+ */
+function normalizeApiKeyCommand(value, providerName) {
+  if (value == null) return undefined;
+  return requiredString(value, `Provider ${providerName} apiKeyCommand must be a non-empty string`);
 }
 
 function assertUniqueProviderNames(providers) {

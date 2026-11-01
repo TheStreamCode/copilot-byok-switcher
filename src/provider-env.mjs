@@ -10,6 +10,24 @@ export function buildProviderEnvironment({ provider, wireModel, offline = false 
     COPILOT_PROVIDER_WIRE_MODEL: wireModel,
   };
 
+  if (provider.catalogModelId) {
+    env.COPILOT_PROVIDER_MODEL_ID = provider.catalogModelId;
+  }
+
+  // The CLI reads this as newline-separated "Name: Value" pairs. Custom
+  // `headers` are already validated against credential-bearing names.
+  if (provider.headers && Object.keys(provider.headers).length > 0) {
+    env.COPILOT_PROVIDER_HEADERS = Object.entries(provider.headers)
+      .map(([headerName, value]) => `${headerName}: ${value}`)
+      .join('\n');
+  }
+
+  // A rotating credential: the CLI runs the command itself, so it takes
+  // precedence over a static key and is never resolved by this process.
+  if (provider.apiKeyCommand) {
+    env.COPILOT_PROVIDER_API_KEY_COMMAND = provider.apiKeyCommand;
+  }
+
   if (provider.bearerToken) {
     env.COPILOT_PROVIDER_BEARER_TOKEN = provider.bearerToken;
   } else if (provider.apiKey) {

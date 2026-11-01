@@ -32,11 +32,19 @@ use `--list-models` to discover what a provider offers.
 **API keys are never written to the config** — only the names of the environment variables that
 hold them. Inline `apiKey` fields are rejected.
 
+`apiKeyCommand` is the exception to environment variables: it names a command the Copilot CLI runs
+itself to obtain a rotating credential, passed through as `COPILOT_PROVIDER_API_KEY_COMMAND` in
+legacy mode. `headers` adds gateway headers to the provider requests, and to the native registry in
+`--native-byok` mode.
+
 ## Commands
 
 ```sh
 copilot-byok                      # Copilot with your models in the picker
 copilot-byok --list-providers     # which providers are active, and what unlocks the rest
+copilot-byok doctor               # diagnose the installation without starting Copilot
+copilot-byok models [provider]    # what each provider serves right now
+copilot-byok --native-byok        # supported BYOK registry instead of the local router
 copilot-byok --native             # stock Copilot, no router
 copilot-byok --dry-run            # show what would start, then exit
 copilot-byok -- <copilot args>    # pass anything through to Copilot
@@ -55,6 +63,29 @@ copilot-byok shim status          # which mechanism is actually in effect
 copilot-byok shim uninstall
 ```
 
+`doctor` exits non-zero only when a check fails; `models` accepts `--json` and `--offline` and
+prints what discovery found without opening a session.
+
+## Native registry mode
+
+`--native-byok` publishes models through the CLI's own `providers.json` registry instead of the
+local router. The session starts with `COPILOT_PROVIDERS_CONFIG` pointing at a temporary file
+generated from the same live discovery; the file is removed when Copilot exits.
+
+Use it when you want the supported BYOK path, or when `COPILOT_API_URL` stops working. Model ids in
+`/model` are `provider/model`, for example `openai/gpt-5.5`; passing a picker id from this project
+(`--model byok-openai-gpt-5-5`) still works because it is translated before launch.
+
+Requirements and trade-offs:
+
+- a Copilot CLI that reads `providers.json` (verified on 1.0.105);
+- provider keys are written to that temporary file for the session, unlike router mode where they
+  never reach the Copilot process;
+- the router's reasoning-effort step-down does not apply because the CLI talks to the provider
+  directly; the levels a model advertises are what the picker offers;
+- a `~/.copilot/providers.json` you maintain yourself is ignored for that session, since the
+  generated file replaces it.
+
 ## Environment variables
 
 Everything has a working default; these are for when you need to change one.
@@ -71,6 +102,7 @@ Everything has a working default; these are for when you need to change one.
 | `COPILOT_BYOK_ASCII=1` | ASCII spinner, for consoles that cannot render Braille | Unicode progress |
 | `COPILOT_BYOK_DEBUG=1` | Stream router events live instead of only to the log | Events go to the log only |
 | `COPILOT_BYOK_PROVIDER_TIMEOUT_MS` | Idle timeout on a provider request | 10 minutes |
+| `COPILOT_GH_HOST`, `GH_HOST` | Data residency tenant host; the router derives `copilot-api.<tenant>.ghe.com` from it | Public GitHub hosts |
 
 ## Keeping the catalog honest
 
@@ -92,6 +124,10 @@ mode, which is exactly what you want for `--offline` work against a local model:
 ```sh
 copilot-byok --legacy --provider ollama --model qwen3-coder --offline
 ```
+
+If `~/.copilot/providers.json` (or the file named by `COPILOT_PROVIDERS_CONFIG`) contains providers
+or models, the CLI ignores `COPILOT_PROVIDER_*`. Legacy mode detects that case, points the child at
+an empty temporary registry, and says so on stderr, so the mode keeps its documented meaning.
 
 ## The shim
 
@@ -117,40 +153,32 @@ both are handled. `copilot-byok shim status` says which mechanism is actually in
 
 ## Reasoning effort
 
-Copilot's own `--effort` flag and its effort selector do not reach BYOK providers. Verified against
-a provider that records what it receives: the payloads produced with `low` and with `high` are
-byte-identical, in both wire formats. This is a known CLI bug rather than a limitation of BYOK
-itself — see [copilot-cli#4012](https://github.com/github/copilot-cli/issues/4012) (still open,
-same symptom on GLM-5.2), [#3119](https://github.com/github/copilot-cli/issues/3119) and
-[#3135](https://github.com/github/copilot-cli/issues/3135), which records that the level *was*
-being sent in 1.0.41.
+Current Copilot CLIs forward the level you pick to BYOK providers. Verified on 1.0.105, both through
+the router and with the CLI's own provider variables. This was not true on 1.0.79, where the payloads
+with `low` and with `high` were byte-identical: that was the CLI bug tracked in
+[copilot-cli#4012](https://github.com/github/copilot-cli/issues/4012), resolved upstream.
 
-Until it is fixed, set the level per model and the router applies it:
+The effort selector is therefore declared for models that report reasoning support, and can be
+hidden per model or per provider with `reasoningEffortPicker: false`.
+
+You can still force a level from the config, useful on older CLIs or when a model should always run
+at a fixed effort:
 
 ```json
 { "model": "deepseek-reasoner", "reasoningEffort": "high" }
 ```
 
 `reasoningEffort` also works at provider level as a default. Values are the ones Copilot uses:
-`none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`.
+`none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`. `reasoningEffortLevels` narrows what
+the picker offers for a model.
 
 **Levels differ per model and providers do not fall back.** GLM-5.2 accepts `max` but answers `400`
-to `xhigh`; an unsupported level would otherwise break every request to that model. The router
-steps down one level at a time until one is accepted, records it, and remembers it for the session:
+to `xhigh`. In router mode the router steps down one level at a time, applies the same ladder to a
+level the CLI sent, records the rejection for the session, and logs the adjustment:
 
 ```text
 notice: chutes: zai-org/GLM-5.2-TEE rejected reasoning effort "xhigh", retrying with "high"
 ```
 
-### Ready for the fix
-
-Nothing here needs rewriting when the CLI starts forwarding the level again: the router already
-prefers an incoming `reasoning_effort` over the configured one, so your pick in the picker will
-simply take effect. The only step will be to turn the selector on:
-
-```json
-{ "model": "deepseek-reasoner", "reasoningEffortPicker": true }
-```
-
-It ships off, because a selector that accepts a choice and changes nothing is worse than no
-selector. `reasoningEffortLevels` narrows what it offers, for models that do not take every level.
+In `--native-byok` mode there is no router in the path: the CLI's request reaches the provider
+unchanged, so advertise only levels the model accepts, with `reasoningEffortLevels`.
