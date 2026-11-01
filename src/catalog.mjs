@@ -7,7 +7,7 @@ const ID_PREFIX = 'byok';
 
 // The levels Copilot offers. Overridable per model, since they differ: Claude
 // Sonnet 4.6 has no `xhigh`, Gemini stops at `high`.
-const DEFAULT_EFFORT_LEVELS = ['low', 'medium', 'high'];
+export const DEFAULT_EFFORT_LEVELS = ['low', 'medium', 'high'];
 
 /**
  * @param {object[]} providers   Already-resolved providers (with apiKey where needed).
@@ -95,16 +95,12 @@ function buildEntry({ id, provider, model }) {
         parallel_tool_calls: true,
         structured_outputs: true,
         ...(model.vision ? { vision: true } : {}),
-        // Off by default, and deliberately so. Declaring this makes Copilot show
-        // its effort selector, but on CLI 1.0.79 the chosen level never reaches a
-        // BYOK provider: payloads sent with low and with high are byte-identical,
-        // in both wire formats (github/copilot-cli#4012, #3119, #3135). A selector
-        // that changes nothing is worse than no selector.
-        //
-        // Turn it on with `reasoningEffortPicker: true` once the CLI forwards the
-        // level again — the router already prefers an incoming reasoning_effort
-        // over the configured one, so it will start working with no other change.
-        ...(model.reasoning && model.reasoningEffortPicker
+        // Declared for reasoning models by default: current CLIs forward the
+        // level to BYOK providers, so the selector is meaningful. Older CLIs
+        // accepted the choice without sending it (github/copilot-cli#4012,
+        // fixed in 1.0.91); there the selector is inert, and
+        // `reasoningEffortPicker: false` hides it.
+        ...(model.reasoning && model.reasoningEffortPicker !== false
           ? { reasoning_effort: model.reasoningEffortLevels || DEFAULT_EFFORT_LEVELS }
           : {}),
       },
@@ -119,7 +115,7 @@ function buildEntry({ id, provider, model }) {
  * prompt; in that case output is halved. Otherwise output is kept as published
  * and the prompt takes what is left.
  */
-function splitBudget(context, output) {
+export function splitBudget(context, output) {
   const outputBudget = output >= context ? Math.floor(context / 2) : output;
   return { outputBudget, promptBudget: Math.max(context - outputBudget, 1) };
 }
