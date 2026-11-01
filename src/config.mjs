@@ -240,14 +240,22 @@ function validateProviderOptions(provider, name, type) {
   }
 
   if (provider.modelsHeaders != null) {
-    if (!isRecord(provider.modelsHeaders)) {
-      throw new Error(`Provider ${name} modelsHeaders must be an object`);
-    }
+    validateHeaders(provider.modelsHeaders, name, 'modelsHeaders');
+  }
 
-    for (const [headerName, value] of Object.entries(provider.modelsHeaders)) {
-      if (!headerName.trim() || typeof value !== 'string') {
-        throw new Error(`Provider ${name} modelsHeaders must contain string header values`);
-      }
+  if (provider.headers != null) {
+    validateHeaders(provider.headers, name, 'headers');
+  }
+}
+
+function validateHeaders(value, providerName, field) {
+  if (!isRecord(value)) {
+    throw new Error(`Provider ${providerName} ${field} must be an object`);
+  }
+
+  for (const [headerName, headerValue] of Object.entries(value)) {
+    if (!headerName.trim() || typeof headerValue !== 'string') {
+      throw new Error(`Provider ${providerName} ${field} must contain string header values`);
     }
   }
 }

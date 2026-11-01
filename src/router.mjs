@@ -26,6 +26,10 @@ const MAX_BODY_BYTES = 64 * 1024 * 1024;
 // the turn indefinitely. Generous, because reasoning models legitimately take minutes.
 const PROVIDER_IDLE_TIMEOUT_MS = Number(process.env.COPILOT_BYOK_PROVIDER_TIMEOUT_MS) || 600_000;
 
+// Error bodies are small. They are read only to tell an effort rejection from
+// any other 400, and are forwarded unchanged when the ladder does not apply.
+const MAX_ERROR_BYTES = 256 * 1024;
+
 /**
  * @param {object}   options
  * @param {object|function} options.catalog  Result of buildCatalog(), or a function
@@ -144,9 +148,19 @@ const EFFORT_LADDER = ['max', 'xhigh', 'high', 'medium', 'low', 'minimal', 'none
 const MAX_EFFORT_ATTEMPTS = EFFORT_LADDER.length + 1;
 const rejectedEfforts = new Map();
 
+/** Test hook: the rejection memory is per process, not per router. */
+export function clearRejectedEfforts() {
+  rejectedEfforts.clear();
+}
+
 function nextEffortDown(effort) {
   const index = EFFORT_LADDER.indexOf(effort);
   return index === -1 || index === EFFORT_LADDER.length - 1 ? null : EFFORT_LADDER[index + 1];
+}
+
+/** Whether a provider's 400 body blames the reasoning effort. */
+function looksLikeEffortRejection(payload) {
+  return /reasoning[\s_-]*effort|\beffort\b/.test(payload.toString('utf8').toLowerCase());
 }
 
 function forwardToProvider({ req, res, payload, route, onEvent, effortOverride, attempt = 0, state = { providerReq: null } }) {
@@ -203,30 +217,48 @@ function forwardToProvider({ req, res, payload, route, onEvent, effortOverride, 
       // remembered for the session, and the retry must carry the replacement:
       // the CLI sends its own level now, so replaying the original payload
       // would resend the same value and loop forever.
-      if (providerRes.statusCode === 400 && outbound.reasoning_effort && attempt < MAX_EFFORT_ATTEMPTS) {
-        const rejected = rejectedEfforts.get(effortKey) || new Set();
-        rejected.add(outbound.reasoning_effort);
-        rejectedEfforts.set(effortKey, rejected);
+      //
+      // Not every 400 is about the effort. The body is read so an ordinary
+      // failure (context length, tool schema, content policy) is forwarded
+      // untouched instead of spending seven extra requests.
+      if (providerRes.statusCode === 400 && outbound.reasoning_effort) {
+        readAll(providerRes, MAX_ERROR_BYTES)
+          .then((errorBody) => {
+            const retryable = looksLikeEffortRejection(errorBody) && attempt < MAX_EFFORT_ATTEMPTS;
+            if (!retryable) {
+              if (!res.headersSent) res.writeHead(providerRes.statusCode, providerRes.headers);
+              res.end(errorBody);
+              return;
+            }
 
-        const fallback = nextEffortDown(outbound.reasoning_effort);
-        onEvent({
-          type: 'notice',
-          provider: provider.id,
-          message: `${model.model} rejected reasoning effort "${outbound.reasoning_effort}"`
-            + (fallback ? `, retrying with "${fallback}"` : ', retrying without it'),
-        });
+            const rejected = rejectedEfforts.get(effortKey) || new Set();
+            rejected.add(outbound.reasoning_effort);
+            rejectedEfforts.set(effortKey, rejected);
 
-        providerRes.resume(); // discard the error body
-        return forwardToProvider({
-          req,
-          res,
-          payload,
-          route,
-          onEvent,
-          effortOverride: fallback,
-          attempt: attempt + 1,
-          state,
-        });
+            const fallback = nextEffortDown(outbound.reasoning_effort);
+            onEvent({
+              type: 'notice',
+              provider: provider.id,
+              message: `${model.model} rejected reasoning effort "${outbound.reasoning_effort}"`
+                + (fallback ? `, retrying with "${fallback}"` : ', retrying without it'),
+            });
+
+            forwardToProvider({
+              req,
+              res,
+              payload,
+              route,
+              onEvent,
+              effortOverride: fallback,
+              attempt: attempt + 1,
+              state,
+            });
+          })
+          .catch((error) => {
+            onEvent({ type: 'error', provider: provider.id, message: `400 response: ${error.message}` });
+            respondJson(res, 502, { error: { message: `copilot-byok router: ${error.message}` } });
+          });
+        return;
       }
 
       res.writeHead(providerRes.statusCode, providerRes.headers);

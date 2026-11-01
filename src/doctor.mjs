@@ -17,6 +17,7 @@ import { isQueryable, resolveLiveModels } from './launcher.mjs';
 import { cachePath, readCache } from './model-cache.mjs';
 import { nativeRegistryPath, inspectNativeRegistry } from './registry-file.mjs';
 import { keystorePath, loadKeys } from './keystore.mjs';
+import { sanitizeCopilotEnvironment } from './process-env.mjs';
 import { logPath } from './session-log.mjs';
 import { shimDir } from './shim-install.mjs';
 import { dataResidencyOrigin } from './upstream.mjs';
@@ -62,7 +63,12 @@ export function detectCopilotVersion(bin, env) {
   });
 }
 
-export async function runDoctorCommand({ argv = [], io, probeVersion = detectCopilotVersion }) {
+export async function runDoctorCommand({
+  argv = [],
+  io,
+  probeVersion = detectCopilotVersion,
+  discover = resolveLiveModels,
+}) {
   const args = { json: false, online: false, configPath: null, help: false };
   const rest = [...argv];
   args.configPath = extractConfigPath(rest);
@@ -83,13 +89,14 @@ export async function runDoctorCommand({ argv = [], io, probeVersion = detectCop
   const add = (level, name, detail) => checks.push({ level, name, detail });
 
   await checkNode(add);
-  await checkCopilot({ add, io, probeVersion });
   const { config, secrets } = await checkConfig({ add, io, configPath: args.configPath });
 
   if (config) {
     checkProviders({ add, config });
-    if (args.online) await checkOnline({ add, config, io });
+    if (args.online) await checkOnline({ add, config, io, discover });
   }
+
+  await checkCopilot({ add, io, probeVersion, config });
 
   checkKeystore({ add, secrets, env: io.env });
   await checkNativeRegistry({ add, env: io.env });
@@ -124,9 +131,12 @@ async function checkNode(add) {
   add('ok', 'node', minimum ? `${current} (minimum ${minimum})` : current);
 }
 
-async function checkCopilot({ add, io, probeVersion }) {
+async function checkCopilot({ add, io, probeVersion, config }) {
   const bin = resolveCopilotBin({ env: io.env });
-  const version = await probeVersion(bin, io.env);
+  // The version probe is still a Copilot process: it must not inherit provider
+  // keys or stale COPILOT_PROVIDER_* variables.
+  const env = sanitizeCopilotEnvironment(io.env, {}, providerSecretNames(config));
+  const version = await probeVersion(bin, env);
   if (!version) {
     add('warn', 'copilot', `${bin} did not answer --version; set COPILOT_BIN if the path is wrong`);
     return;
@@ -159,25 +169,46 @@ async function checkConfig({ add, io, configPath }) {
 }
 
 function checkProviders({ add, config }) {
-  const active = config.providers.filter(isQueryable);
+  const keyed = config.providers.filter((provider) => provider.apiKey || provider.bearerToken);
+  const authless = config.providers.filter((provider) => provider.authRequired === false);
+  const commandOnly = config.providers.filter((provider) =>
+    provider.authRequired !== false && !provider.apiKey && !provider.bearerToken && provider.apiKeyCommand);
   const missing = config.providers
-    .filter((provider) => provider.authRequired !== false && !provider.apiKey && !provider.bearerToken)
+    .filter((provider) => provider.authRequired !== false && !provider.apiKey && !provider.bearerToken && !provider.apiKeyCommand)
     .map((provider) => provider.id);
 
-  add(active.length > 0 ? 'ok' : 'warn', 'providers', `${active.length} of ${config.providers.length} have a credential`);
-  if (missing.length > 0 && active.length === 0) {
+  add(keyed.length + authless.length > 0 ? 'ok' : 'warn', 'providers', `${keyed.length} keyed, ${authless.length} need no key`);
+  if (commandOnly.length > 0) {
+    add('warn', 'apiKeyCommand', `${commandOnly.map((provider) => provider.id).join(', ')} work only with --legacy`);
+  }
+  if (missing.length > 0 && keyed.length === 0 && authless.length === 0) {
     add('warn', 'credentials', `set a key for one of: ${missing.slice(0, 6).join(', ')}${missing.length > 6 ? ', ...' : ''}`);
   }
 }
 
-async function checkOnline({ add, config, io }) {
+async function checkOnline({ add, config, io, discover }) {
+  const events = [];
+  let providers;
   try {
-    const providers = await resolveLiveModels(config.providers, { env: io.env });
-    const withModels = providers.filter((provider) => provider.models?.length);
-    add('ok', 'discovery', `${withModels.length} providers returned models`);
+    providers = await discover(config.providers, { env: io.env, onEvent: (event) => events.push(event) });
   } catch (error) {
     add('warn', 'discovery', error.message);
+    return;
   }
+
+  const queryable = config.providers.filter(isQueryable);
+  const withModels = providers.filter((provider) => provider.models?.length);
+  const errors = events
+    .filter((event) => event.type === 'error')
+    .map((event) => (event.provider ? `${event.provider}: ${event.message}` : event.message))
+    .slice(0, 3);
+
+  if (queryable.length > 0 && withModels.length === 0) {
+    add('warn', 'discovery', `no models from ${queryable.length} configured provider(s)${errors.length > 0 ? `; ${errors.join('; ')}` : ''}`);
+    return;
+  }
+
+  add('ok', 'discovery', `${withModels.length} providers returned models${errors.length > 0 ? `, ${errors.length} failed` : ''}`);
 }
 
 function checkKeystore({ add, secrets, env }) {
@@ -253,6 +284,17 @@ function versionAtLeast(current, minimum) {
   if (a !== x) return a > x;
   if (b !== y) return b > y;
   return c >= z;
+}
+
+function providerSecretNames(config) {
+  return (config?.providers || []).flatMap((provider) => [
+    ...asArray(provider.apiKeyEnv),
+    ...asArray(provider.bearerTokenEnv),
+  ]);
+}
+
+function asArray(value) {
+  return Array.isArray(value) ? value : value ? [value] : [];
 }
 
 function doctorHelpText() {

@@ -86,14 +86,15 @@ async function writeKeys(keys, env) {
 }
 
 /**
- * Owner-only access. POSIX gets 0600; Windows needs an explicit ACL because file
- * modes are advisory there and inherited permissions would otherwise apply.
+ * Owner-only access. POSIX gets 0600 by default; Windows needs an explicit ACL
+ * because file modes are advisory there and inherited permissions would
+ * otherwise apply. Callers can pass 0700 for a directory.
  * @returns {Promise<boolean>} false when the restriction could not be applied.
  */
-export async function restrictPermissions(path) {
+export async function restrictPermissions(path, { mode = 0o600 } = {}) {
   if (platform() !== 'win32') {
     try {
-      await chmod(path, 0o600);
+      await chmod(path, mode);
       return true;
     } catch {
       return false;
@@ -106,7 +107,10 @@ export async function restrictPermissions(path) {
   if (!user) return false;
 
   return new Promise((resolve) => {
-    const child = spawn('icacls', [path, '/inheritance:r', '/grant:r', `${user}:F`], {
+    // Directories get inheritable permissions, so a file created inside them
+    // is owner-only from the first byte rather than after a second icacls run.
+    const grant = mode === 0o700 ? `${user}:(OI)(CI)F` : `${user}:F`;
+    const child = spawn('icacls', [path, '/inheritance:r', '/grant:r', grant], {
       stdio: 'ignore',
       shell: false,
     });

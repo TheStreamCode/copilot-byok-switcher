@@ -1,10 +1,14 @@
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import test from 'node:test';
+import test, { beforeEach } from 'node:test';
 
 import { buildCatalog } from '../src/catalog.mjs';
-import { createRouter, mergeModels } from '../src/router.mjs';
+import { clearRejectedEfforts, createRouter, mergeModels } from '../src/router.mjs';
 import { createUpstreamResolver } from '../src/upstream.mjs';
+
+beforeEach(() => {
+  clearRejectedEfforts();
+});
 
 test('mergeModels appends BYOK entries to the GitHub list', () => {
   const payload = JSON.stringify({ data: [{ id: 'gpt-5.5' }] });
@@ -478,6 +482,46 @@ test('a caller-sent effort the provider rejects steps down instead of looping', 
       body: JSON.stringify({ model: 'byok-beta-cli-effort', messages: [], reasoning_effort: 'xhigh' }),
     });
     assert.deepEqual(attempts, ['high'], 'no repeated round trip for a rejected level');
+  } finally {
+    router.closeAllConnections();
+    await new Promise((resolve) => router.close(resolve));
+    await new Promise((resolve) => provider.close(resolve));
+  }
+});
+
+test('a 400 unrelated to the effort is forwarded without stepping down', async () => {
+  const attempts = [];
+  const provider = http.createServer((req, res) => {
+    let body = '';
+    req.on('data', (chunk) => { body += chunk; });
+    req.on('end', () => {
+      attempts.push(JSON.parse(body).reasoning_effort);
+      res.writeHead(400, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ error: { message: 'context_length_exceeded' } }));
+    });
+  });
+  await new Promise((resolve) => provider.listen(0, '127.0.0.1', resolve));
+
+  const catalog = buildCatalog([{
+    id: 'delta', name: 'Delta', baseUrl: `http://127.0.0.1:${provider.address().port}/v1`,
+    apiKey: 'k', models: [{ model: 'context-limit' }],
+  }]);
+  const router = createRouter({
+    catalog,
+    upstream: createUpstreamResolver({ explicit: 'https://upstream.invalid' }),
+  });
+  await new Promise((resolve) => router.listen(0, '127.0.0.1', resolve));
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${router.address().port}/chat/completions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model: 'byok-delta-context-limit', messages: [], reasoning_effort: 'high' }),
+    });
+
+    assert.equal(response.status, 400);
+    assert.match(await response.text(), /context_length_exceeded/);
+    assert.deepEqual(attempts, ['high'], 'one request, no effort ladder');
   } finally {
     router.closeAllConnections();
     await new Promise((resolve) => router.close(resolve));

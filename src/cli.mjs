@@ -20,7 +20,7 @@ import { runKeysCommand } from './keys-command.mjs';
 import { runDoctorCommand } from './doctor.mjs';
 import { runModelsCommand } from './models-command.mjs';
 import { buildNativeRegistry, nativeSelectionId } from './native-registry.mjs';
-import { createRegistryFile, inspectNativeRegistry } from './registry-file.mjs';
+import { createRegistryFile, inspectNativeRegistry, sweepStaleRegistries } from './registry-file.mjs';
 import { loadKeys } from './keystore.mjs';
 import { runExtensionCommand } from './extension-install.mjs';
 import { runShimCommand } from './shim-install.mjs';
@@ -192,43 +192,34 @@ async function listProviders({ config, io }) {
   for (const provider of config.providers) {
     const usable = isQueryable(provider);
     const known = provider.models?.length || recallModels(diskCache, provider.id, Date.now)?.length || 0;
-    const keys = (provider.apiKeyEnv || []).join(' | ') || (provider.authRequired === false ? 'no key needed' : '-');
+    const keys = (provider.apiKeyEnv || []).join(' | ')
+      || (provider.authRequired === false
+        ? 'no key needed'
+        : provider.apiKeyCommand ? 'apiKeyCommand (--legacy only)' : '-');
     io.stdout.write(`${usable ? '*' : ' '} ${provider.id.padEnd(20)} ${String(known).padStart(2)} models  ${keys}\n`);
   }
 
   io.stdout.write('\n* = key configured; live model lists load at startup. Counts show pinned or remembered lists.\n');
+  io.stdout.write('apiKeyCommand providers are usable only with --legacy.\n');
   return 0;
 }
 
 /** Native BYOK: the CLI reads a generated providers.json and talks to the providers itself. */
 async function runNativeByokMode({ args, config, io }) {
   const sessionLog = createSessionLog(io);
+  // Best effort for sessions that could not clean up (SIGKILL, power loss).
+  await sweepStaleRegistries().catch(() => {});
 
   const providers = args.noDiscovery
     ? await resolveOfflineModels(config.providers, { env: io.env })
     : await discoverWithProgress({ config, io, sessionLog });
   const active = selectActiveProviders(providers);
-
-  if (active.length === 0) {
-    io.stderr.write(
-      'No BYOK provider configured: starting Copilot with GitHub models only.\n' +
-      'Run "copilot-byok --list-providers" to see which environment variables to set.\n\n'
-    );
-    return runCopilot({ copilotArgs: nativeCopilotArgs(args, []), env: {}, io, dryRun: args.dryRun, native: true, config });
-  }
-
-  const registry = buildNativeRegistry(active);
-  const registryFile = await createRegistryFile(registry);
-  // A hard kill still leaves the file behind if only `finally` cleaned up.
-  const cleanupOnExit = () => rmSync(registryFile.dir, { recursive: true, force: true });
-  process.once('exit', cleanupOnExit);
-
+  const registry = active.length > 0 ? buildNativeRegistry(active) : { providers: [], models: [] };
   const selectionIds = registry.models.map((model) => nativeSelectionId(model.provider, model.id));
   const copilotArgs = nativeCopilotArgs(args, active);
 
+  // A dry run must not write provider keys to disk, not even temporarily.
   if (args.dryRun) {
-    process.removeListener('exit', cleanupOnExit);
-    await registryFile.cleanup();
     io.stdout.write(`${JSON.stringify({
       mode: 'native-byok',
       providers: active.map((provider) => provider.id),
@@ -237,6 +228,32 @@ async function runNativeByokMode({ args, config, io }) {
     }, null, 2)}\n`);
     return 0;
   }
+
+  if (active.length === 0) {
+    io.stderr.write(
+      'No provider configured by copilot-byok: starting Copilot without a generated registry.\n' +
+      'Run "copilot-byok --list-providers" to see which environment variables to set.\n\n'
+    );
+    return runCopilot({ copilotArgs, env: {}, io, native: true, config });
+  }
+
+  const registryFile = await createRegistryFile(registry);
+  const reportCleanupFailure = () => {
+    io.stderr.write(`copilot-byok: could not remove ${registryFile.path}; delete it manually.\n`);
+  };
+  const cleanupSync = () => {
+    try {
+      rmSync(registryFile.dir, { recursive: true, force: true });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const cleanupAndReport = () => {
+    if (!cleanupSync()) reportCleanupFailure();
+  };
+  process.once('exit', cleanupAndReport);
+  const removeSignalHandlers = installSignalCleanup(cleanupAndReport);
 
   io.stderr.write(
     `copilot-byok: added ${registry.models.length} models from ${active.length} providers through the native BYOK registry\n`
@@ -250,10 +267,40 @@ async function runNativeByokMode({ args, config, io }) {
       config,
     });
   } finally {
-    process.removeListener('exit', cleanupOnExit);
-    await registryFile.cleanup();
+    removeSignalHandlers();
+    process.removeListener('exit', cleanupAndReport);
+    const cleaned = await registryFile.cleanup();
+    if (!cleaned) reportCleanupFailure();
     sessionLog.summarize();
   }
+}
+
+/** Removes the temporary registry, then lets the signal terminate the process. */
+function installSignalCleanup(cleanup) {
+  const handlers = [];
+
+  for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+    const handler = () => {
+      cleanup();
+      try {
+        process.removeListener(signal, handler);
+        process.kill(process.pid, signal);
+      } catch {
+        process.exit(1);
+      }
+    };
+
+    try {
+      process.once(signal, handler);
+      handlers.push([signal, handler]);
+    } catch {
+      // Signal not supported on this platform.
+    }
+  }
+
+  return () => {
+    for (const [signal, handler] of handlers) process.removeListener(signal, handler);
+  };
 }
 
 /**
@@ -307,8 +354,8 @@ async function runLegacyMode({ args, io }) {
     return runCopilot({ copilotArgs, env: {}, io, dryRun: args.dryRun, native: true, config });
   }
 
-  if (!args.listModels && provider.authRequired !== false && !provider.apiKey && !provider.bearerToken) {
-    throw new Error(`Missing API key for ${provider.name}. Configure an environment variable listed in the provider's apiKeyEnv or bearerTokenEnv setting.`);
+  if (!args.listModels && provider.authRequired !== false && !provider.apiKey && !provider.bearerToken && !provider.apiKeyCommand) {
+    throw new Error(`Missing API key for ${provider.name}. Configure an environment variable listed in the provider's apiKeyEnv or bearerTokenEnv setting, or an apiKeyCommand.`);
   }
 
   if (args.wireApi && provider.type === 'anthropic') {
@@ -556,7 +603,9 @@ function asArray(value) {
 function redactEnv(env) {
   return Object.fromEntries(Object.entries(env).map(([key, value]) => [
     key,
-    /KEY|TOKEN|SECRET|PASSWORD/i.test(key) ? '<redacted>' : value,
+    // Header values can carry a gateway signature even when the header name
+    // looks harmless; the value never belongs in dry-run output.
+    key === 'COPILOT_PROVIDER_HEADERS' || /KEY|TOKEN|SECRET|PASSWORD/i.test(key) ? '<redacted>' : value,
   ]));
 }
 
