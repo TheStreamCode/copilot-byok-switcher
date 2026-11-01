@@ -20,7 +20,8 @@ All notable changes to this project are documented in this file.
   `copilot-api.<tenant>.ghe.com` instead of the public Copilot hosts.
 - Legacy mode now passes `COPILOT_PROVIDER_HEADERS` (from `headers`) and
   `COPILOT_PROVIDER_API_KEY_COMMAND` (from `apiKeyCommand`), and sets `COPILOT_PROVIDER_MODEL_ID`
-  when `catalogModelId` is configured.
+  when `catalogModelId` is configured. A provider with only `apiKeyCommand` is accepted in
+  `--legacy` (Copilot CLI 1.0.84 or newer) and reported as legacy-only elsewhere.
 
 ### Changed
 
@@ -30,11 +31,27 @@ All notable changes to this project are documented in this file.
 - Legacy mode detects a user `providers.json` that would take precedence over `COPILOT_PROVIDER_*`,
   points the child at an empty temporary registry, and says so on stderr.
 
+### Security
+
+- Native registry: the temporary directory is made owner-only before the file exists, and a failed
+  restriction aborts the session instead of leaving keys readable. Cleanup now covers SIGINT,
+  SIGTERM and SIGHUP, registry removal failures are reported, and stale registries from a hard kill
+  are swept at the next native startup.
+- `--dry-run` no longer writes provider keys for `--native-byok`, and `COPILOT_PROVIDER_HEADERS` is
+  redacted in dry-run output.
+
 ### Fixed
 
 - A reasoning-effort level sent by the CLI and rejected by the provider no longer loops: the retry
   now carries the stepped-down level instead of replaying the original request. The close listener
   is also registered once per client request instead of once per retry.
+- The effort ladder runs only when a `400` body mentions the reasoning effort; ordinary context,
+  schema or content-policy errors are forwarded unchanged instead of consuming seven retries.
+- `doctor` runs the Copilot version probe without provider credentials, reports discovery failures
+  in `--online`, counts keyed and authless providers separately, and marks `apiKeyCommand` providers
+  as legacy-only.
+- `headers` must be an object of string values, like `modelsHeaders`, and the published schema no
+  longer describes the old reasoning-effort behavior.
 - `docs/troubleshooting.md` had a broken router log path.
 
 ## [2.0.1] - 2026-10-21

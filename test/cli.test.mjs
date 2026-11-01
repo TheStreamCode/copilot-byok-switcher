@@ -682,6 +682,109 @@ test('native BYOK dry-run publishes selection ids and translates picker ids', as
   assert.deepEqual(plan.args, ['--model', 'echo/m1']);
 });
 
+test('native BYOK dry-run keeps its shape when no provider is active', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'copilot-byok-native-empty-'));
+  const configPath = join(dir, 'providers.json');
+  await writeFile(configPath, JSON.stringify({
+    providers: [{
+      id: 'locked',
+      name: 'Locked',
+      baseUrl: 'http://127.0.0.1:1/v1',
+      apiKeyEnv: 'MISSING_KEY',
+      models: [{ model: 'm1' }],
+    }],
+  }));
+
+  const output = captureWritable();
+  const exitCode = await main(['--native-byok', '--no-discovery', '--dry-run', '--config', configPath], {
+    stdin: { isTTY: false },
+    stdout: output,
+    stderr: captureWritable(),
+    env: {
+      COPILOT_BYOK_KEYSTORE: join(dir, 'keys.json'),
+      COPILOT_BYOK_MODEL_CACHE: join(dir, 'models.json'),
+    },
+  });
+
+  assert.equal(exitCode, 0);
+  const plan = JSON.parse(output.text());
+  assert.equal(plan.mode, 'native-byok');
+  assert.deepEqual(plan.providers, []);
+  assert.deepEqual(plan.models, []);
+});
+
+test('native BYOK writes the registry for the session and removes it afterwards', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'copilot-byok-native-session-'));
+  const configPath = join(dir, 'providers.json');
+  const scriptPath = join(dir, 'fake-copilot.mjs');
+  const markerPath = join(dir, 'session.json');
+  await writeFile(configPath, JSON.stringify({
+    providers: [{
+      id: 'echo',
+      name: 'Echo',
+      baseUrl: 'http://127.0.0.1:1/v1',
+      authRequired: false,
+      models: [{ model: 'm1', contextWindow: 128000 }],
+    }],
+  }));
+  await writeFile(scriptPath, [
+    "import { readFile, writeFile } from 'node:fs/promises';",
+    'const registry = process.env.COPILOT_PROVIDERS_CONFIG;',
+    "const contents = await readFile(registry, 'utf8');",
+    "await writeFile(process.argv[2], JSON.stringify({ registry, contents }));",
+  ].join('\n'));
+
+  const exitCode = await main(['--native-byok', '--no-discovery', '--config', configPath, '--', scriptPath, markerPath], {
+    stdin: { isTTY: false },
+    stdout: captureWritable(),
+    stderr: captureWritable(),
+    env: {
+      COPILOT_BIN: process.execPath,
+      COPILOT_BYOK_KEYSTORE: join(dir, 'keys.json'),
+      COPILOT_BYOK_MODEL_CACHE: join(dir, 'models.json'),
+      COPILOT_BYOK_LOG: join(dir, 'router.log'),
+    },
+  });
+
+  assert.equal(exitCode, 0);
+  const seen = JSON.parse(await readFile(markerPath, 'utf8'));
+  const registry = JSON.parse(seen.contents);
+  assert.equal(registry.providers[0].name, 'echo');
+  assert.equal(registry.models[0].id, 'm1');
+  await assert.rejects(() => stat(seen.registry), 'the temporary registry is removed');
+});
+
+test('legacy mode accepts a provider with only a credential command', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'copilot-byok-command-'));
+  const configPath = join(dir, 'providers.json');
+  await writeFile(configPath, JSON.stringify({
+    providers: [{
+      id: 'gateway',
+      name: 'Gateway',
+      baseUrl: 'https://gateway.example.com/v1',
+      apiKeyCommand: 'vault read -field=key secret/llm',
+      headers: { 'X-Team': 'team-a' },
+    }],
+  }));
+
+  const output = captureWritable();
+  const exitCode = await main(['--legacy', '--provider', 'gateway', '--model', 'm1', '--dry-run', '--config', configPath], {
+    stdin: { isTTY: false },
+    stdout: output,
+    stderr: captureWritable(),
+    env: {
+      COPILOT_BYOK_KEYSTORE: join(dir, 'keys.json'),
+      COPILOT_BYOK_MODEL_CACHE: join(dir, 'models.json'),
+    },
+  });
+
+  assert.equal(exitCode, 0);
+  const plan = JSON.parse(output.text());
+  assert.equal(plan.env.COPILOT_PROVIDER_API_KEY_COMMAND, '<redacted>');
+  assert.equal(plan.env.COPILOT_PROVIDER_HEADERS, '<redacted>');
+  assert.equal(Object.hasOwn(plan.env, 'COPILOT_PROVIDER_API_KEY'), false);
+});
+
 test('legacy mode isolates a native registry that would take precedence', async () => {
   const home = await mkdtemp(join(tmpdir(), 'copilot-byok-legacy-home-'));
   const dir = await mkdtemp(join(tmpdir(), 'copilot-byok-legacy-'));

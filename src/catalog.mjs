@@ -98,8 +98,8 @@ function buildEntry({ id, provider, model }) {
         // Declared for reasoning models by default: current CLIs forward the
         // level to BYOK providers, so the selector is meaningful. Older CLIs
         // accepted the choice without sending it (github/copilot-cli#4012,
-        // fixed in 1.0.91); there the selector is inert, and
-        // `reasoningEffortPicker: false` hides it.
+        // reported resolved in the 1.0.9x line); there the selector is inert,
+        // and `reasoningEffortPicker: false` hides it.
         ...(model.reasoning && model.reasoningEffortPicker !== false
           ? { reasoning_effort: model.reasoningEffortLevels || DEFAULT_EFFORT_LEVELS }
           : {}),

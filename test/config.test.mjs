@@ -356,6 +356,23 @@ test('rejects header values with line breaks', async () => {
   await assert.rejects(() => loadConfigFromPath(configPath, {}), /must not contain line breaks/);
 });
 
+test('rejects request headers that are not an object of strings', async () => {
+  for (const headers of ['X-Team: a', ['a'], { 'X-Team': 42 }]) {
+    const dir = await mkdtemp(join(tmpdir(), 'copilot-byok-'));
+    const configPath = join(dir, 'providers.json');
+    await writeFile(configPath, JSON.stringify({
+      providers: [{
+        id: 'bad-headers',
+        name: 'Bad Headers',
+        baseUrl: 'https://api.example.com/v1',
+        headers,
+      }],
+    }));
+
+    await assert.rejects(() => loadConfigFromPath(configPath, {}), /headers must be an object|string header values/);
+  }
+});
+
 test('rejects an OpenAI wire API override on Anthropic providers', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'copilot-byok-'));
   const configPath = join(dir, 'providers.json');

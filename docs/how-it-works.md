@@ -93,6 +93,8 @@ instead of the router. It runs the usual live discovery, writes a temporary `pro
 is no local proxy and no dependency on `COPILOT_API_URL`.
 
 The trade-off is the one the registry itself imposes: provider keys are in that temporary file while
-the session runs. The file is created in the system temp directory with owner-only permissions and
-removed on exit, including when the session fails to start. Model ids are `provider/model`; a
-`--model byok-...` value is translated to the matching native id.
+the session runs. The directory and file are owner-only before the file is written; if the
+restriction cannot be applied the session is aborted. The file is removed on normal exit, when the
+session fails to start, and on SIGINT/SIGTERM/SIGHUP; registries left by a hard kill are swept when
+the next native session starts. Model ids are `provider/model`; a `--model byok-...` value is
+translated to the matching native id.

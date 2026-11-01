@@ -17,8 +17,10 @@ through the opt-in key store (`copilot-byok keys set` or `/byok`), never on its 
 
 `--native-byok` publishes the same models through the CLI's supported `providers.json` registry
 instead: discovery runs as usual, a private temporary registry is written, `COPILOT_PROVIDERS_CONFIG`
-points at it for the child process, and it is deleted when the session ends. That file contains the
-provider credentials for the session, which is why the mode stays opt-in.
+points at it for the child process, and it is deleted on normal exit, on failure, and on the usual
+termination signals. That file contains the provider credentials for the session, which is why the
+mode stays opt-in. Native mode needs a CLI that loads `providers.json`; 1.0.105 is the verified
+version and 1.0.79 does not load it.
 
 `COPILOT_API_URL` is an internal Copilot CLI variable, absent from `copilot help environment`.
 Treat it as the project's main external risk: if a CLI release changes it, the router breaks and
@@ -131,7 +133,8 @@ This project handles third-party provider API keys. Every change must preserve t
   interactive prompt: never accept a key from argv, stdin pipes, or an environment variable meant for
   something else. It must stay opt-in — nothing may create it implicitly.
 - Never print, log, or embed a credential value. `--dry-run` output must keep passing through `redactEnv()`,
-  which masks any key matching `/KEY|TOKEN|SECRET|PASSWORD/i`.
+  which masks any key matching `/KEY|TOKEN|SECRET|PASSWORD/i` and the whole `COPILOT_PROVIDER_HEADERS`
+  value.
 - Error messages must not reveal which environment variable holds a secret (covered by a test).
 - Model-catalog requests send credentials only when the catalog URL is same-origin with `baseUrl`,
   or when the provider explicitly sets an authenticated `modelsAuth` mode (`bearer`, `x-api-key`, or
@@ -145,9 +148,10 @@ This project handles third-party provider API keys. Every change must preserve t
 - No `.env` file is used or expected; there is no `.env.example`. Do not add one.
 - Never commit real keys, tokens, or a `providers.json` containing credentials.
 - `--native-byok` writes provider credentials to a temporary registry because the CLI's supported
-  path requires them inline. That file must keep `0600` (owner-only ACL on Windows), live in the
-  system temp directory, and be removed on exit, including on failure. It must never be written to
-  the repository or to the user's Copilot config directory.
+  path requires them inline. The directory must be owner-only before the file exists, a failed
+  restriction must abort the session, and the file must be removed on exit, on failure to start, and
+  on SIGINT/SIGTERM/SIGHUP; a hard kill is covered only by the stale-registry sweep. It must never be
+  written to the repository or to the user's Copilot config directory.
 - `--legacy` must keep isolating itself from a user `providers.json` when one is present: that file
   takes precedence over `COPILOT_PROVIDER_*`, and silently using it would break the mode.
 

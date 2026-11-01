@@ -280,7 +280,7 @@
             "xhigh",
             "max"
           ],
-          "description": "Reasoning effort sent to the provider. Copilot does not forward its own setting to BYOK models, so this is what actually takes effect. Levels differ per model; an unsupported one is stepped down automatically."
+          "description": "Reasoning effort the router applies when the request carries none. Current Copilot CLIs forward the level picked in the selector on their own; this value remains useful on older CLIs or to pin a model to a fixed level. Ignored by --native-byok, which sends the CLI's level directly. Levels differ per model; an unsupported one is stepped down automatically in router mode."
         },
         "family": {
           "type": "string",
@@ -288,7 +288,7 @@
         },
         "reasoningEffortPicker": {
           "type": "boolean",
-          "description": "Declare reasoning-effort support so Copilot shows its effort selector. Off by default: on CLI 1.0.79 the chosen level never reaches a BYOK provider (github/copilot-cli#4012). Turn it on once the CLI forwards it again."
+          "description": "Declares reasoning-effort support so Copilot shows its effort selector. On by default for models that report reasoning, since current CLIs forward the level to BYOK providers. Set it to false to hide the selector; on CLI 1.0.79 the selector was inert."
         },
         "reasoningEffortLevels": {
           "type": "array",
@@ -305,7 +305,7 @@
               "max"
             ]
           },
-          "description": "Levels offered in the selector, when it is enabled. Defaults to low/medium/high; models differ, so override where needed."
+          "description": "Levels offered in the selector. Defaults to low/medium/high; models differ, so override where needed. In --native-byok this is the only lever, because the router's step-down does not apply."
         }
       },
       "additionalProperties": true

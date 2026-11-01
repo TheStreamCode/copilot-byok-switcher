@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, stat, utimes, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -8,6 +8,7 @@ import {
   createRegistryFile,
   inspectNativeRegistry,
   nativeRegistryPath,
+  sweepStaleRegistries,
 } from '../src/registry-file.mjs';
 
 test('writes a registry to a private temp directory and removes it on cleanup', async () => {
@@ -19,11 +20,46 @@ test('writes a registry to a private temp directory and removes it on cleanup', 
   const file = await createRegistryFile(registry);
   try {
     assert.deepEqual(JSON.parse(await readFile(file.path, 'utf8')), registry);
+
+    if (process.platform !== 'win32') {
+      assert.equal((await stat(file.path)).mode & 0o777, 0o600, 'registry file is owner-only');
+      assert.equal((await stat(file.dir)).mode & 0o777, 0o700, 'registry directory is owner-only');
+    }
+
+    assert.equal(await file.cleanup(), true);
   } finally {
     await file.cleanup();
   }
 
   await assert.rejects(() => readFile(file.path, 'utf8'));
+});
+
+test('refuses to write keys when permissions cannot be restricted', async () => {
+  const base = await mkdtemp(join(tmpdir(), 'copilot-byok-registry-base-'));
+
+  await assert.rejects(
+    () => createRegistryFile({ providers: [], models: [] }, { base, restrict: async () => false }),
+    /could not restrict permissions/,
+  );
+  assert.deepEqual(await readdir(base), [], 'the temporary directory is removed');
+});
+
+test('sweeps only stale registries from previous sessions', async () => {
+  const base = await mkdtemp(join(tmpdir(), 'copilot-byok-registry-base-'));
+  const stale = join(base, 'copilot-byok-registry-stale');
+  const recent = join(base, 'copilot-byok-registry-recent');
+  await mkdir(stale);
+  await mkdir(recent);
+  await writeFile(join(stale, 'providers.json'), '{}');
+  await writeFile(join(recent, 'providers.json'), '{}');
+
+  const old = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000);
+  await utimes(stale, old, old);
+
+  const removed = await sweepStaleRegistries({ base });
+  assert.equal(removed, 1);
+  await assert.rejects(() => stat(stale));
+  assert.ok(await stat(recent));
 });
 
 test('honours COPILOT_PROVIDERS_CONFIG and counts the registry entries', async () => {

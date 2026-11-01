@@ -34,7 +34,9 @@ hold them. Inline `apiKey` fields are rejected.
 
 `apiKeyCommand` is the exception to environment variables: it names a command the Copilot CLI runs
 itself to obtain a rotating credential, passed through as `COPILOT_PROVIDER_API_KEY_COMMAND` in
-legacy mode. `headers` adds gateway headers to the provider requests, and to the native registry in
+legacy mode. It needs Copilot CLI 1.0.84 or newer and works only with `--legacy`: the CLI's
+`providers.json` registry has no equivalent, so router and `--native-byok` sessions cannot use it.
+`headers` adds gateway headers to the provider requests, and to the native registry in
 `--native-byok` mode.
 
 ## Commands
@@ -78,9 +80,12 @@ Use it when you want the supported BYOK path, or when `COPILOT_API_URL` stops wo
 
 Requirements and trade-offs:
 
-- a Copilot CLI that reads `providers.json` (verified on 1.0.105);
+- a Copilot CLI that reads `providers.json` (verified on 1.0.105; 1.0.79 does not);
 - provider keys are written to that temporary file for the session, unlike router mode where they
-  never reach the Copilot process;
+  never reach the Copilot process. The directory and file are owner-only before the file is written;
+  if that restriction fails the session is aborted rather than leaving keys readable. The registry is
+  removed on normal exit and on SIGINT/SIGTERM/SIGHUP, and stale registries older than a week are
+  swept at the next native startup for the uncatchable cases (SIGKILL, power loss);
 - the router's reasoning-effort step-down does not apply because the CLI talks to the provider
   directly; the levels a model advertises are what the picker offers;
 - a `~/.copilot/providers.json` you maintain yourself is ignored for that session, since the
@@ -161,8 +166,8 @@ with `low` and with `high` were byte-identical: that was the CLI bug tracked in
 The effort selector is therefore declared for models that report reasoning support, and can be
 hidden per model or per provider with `reasoningEffortPicker: false`.
 
-You can still force a level from the config, useful on older CLIs or when a model should always run
-at a fixed effort:
+You can still force a level from the config in **router mode**, useful on older CLIs or when a model
+should always run at a fixed effort:
 
 ```json
 { "model": "deepseek-reasoner", "reasoningEffort": "high" }
@@ -170,11 +175,14 @@ at a fixed effort:
 
 `reasoningEffort` also works at provider level as a default. Values are the ones Copilot uses:
 `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`. `reasoningEffortLevels` narrows what
-the picker offers for a model.
+the picker offers for a model. `--native-byok` ignores `reasoningEffort`: the CLI sends the level
+from the picker or `--reasoning-effort`, and only `reasoningEffortLevels` constrains it there.
 
 **Levels differ per model and providers do not fall back.** GLM-5.2 accepts `max` but answers `400`
 to `xhigh`. In router mode the router steps down one level at a time, applies the same ladder to a
-level the CLI sent, records the rejection for the session, and logs the adjustment:
+level the CLI sent, records the rejection for the session, and logs the adjustment. A `400` that
+does not mention the effort is forwarded unchanged, so an ordinary context or schema error is never
+retried through the ladder:
 
 ```text
 notice: chutes: zai-org/GLM-5.2-TEE rejected reasoning effort "xhigh", retrying with "high"

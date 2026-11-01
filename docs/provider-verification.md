@@ -36,6 +36,9 @@ Re-verified on 2026-11-01 against 1.0.105, with 1.0.79 as the baseline.
 | Reasoning effort to BYOK | not sent | sent | `reasoning_effort: "high"` on the wire with native provider variables, and through the router when the model entry advertises levels |
 | Native `providers.json` registry | not loaded | loaded | two providers in one file; `--model p2/m2` reached the second base URL with its `wireModel` |
 | Extension SDK | unchanged | unchanged | the 1.0.28 SDK still exports `joinSession`, `commands`, `ui.select` and `session.log`; extensions remain experimental and were not run interactively in this audit |
+| Data residency origin | not exercised | derived, unit-tested | `dataResidencyOrigin` maps a `*.ghe.com` host to `copilot-api.<tenant>.ghe.com`; no live data residency tenant was available, so the host is inferred from upstream issue #4527 and the CLI's documented host handling, not verified end-to-end |
+| `COPILOT_PROVIDER_HEADERS`, `_MODEL_ID`, `_API_KEY_COMMAND` | n/a | documented and passed through | 1.0.105 `copilot help providers` lists all three; `API_KEY_COMMAND` exists since 1.0.84 per upstream issue #4936; the environment pass-through is covered by unit tests, with no real provider run |
+| `--native-byok` minimum CLI | does not load the registry | works | a manual `providers.json` was not loaded on 1.0.79; no bisect was done, so 1.0.105 is the verified version. Do not assume native mode works on older releases |
 
 `COPILOT_API_URL` remains undocumented: it is not listed in `copilot help environment` on 1.0.105.
 The native registry is the supported alternative, which is why `--native-byok` exists.
@@ -186,7 +189,8 @@ On 2026-11-01, `copilot-byok --native-byok` ran on CLI 1.0.105 with an isolated
 The generated `providers.json` was accepted, Copilot sent
 `POST /v1/chat/completions` with the pinned model name, used the reply, and the
 temporary registry was gone after exit. This verifies the registry shape and the
-cleanup path, not a real provider's inference.
+clean-exit cleanup, not a real provider's inference. Signal cleanup and the
+stale-registry sweep are covered by unit tests, not by this end-to-end run.
 
 ## Reproducing
 
