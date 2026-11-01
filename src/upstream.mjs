@@ -12,6 +12,29 @@ export const UPSTREAM_CANDIDATES = [
   'https://api.enterprise.githubcopilot.com',
 ];
 
+const GHE_HOST_PATTERN = /^[a-z0-9-]+(\.[a-z0-9-]+)*\.ghe\.com$/i;
+
+/**
+ * GitHub Enterprise Cloud with data residency serves the Copilot API from the
+ * tenant host, not from the public api.githubcopilot.com hosts. The CLI reads
+ * COPILOT_GH_HOST (or GH_HOST) for its own requests, so the router derives the
+ * matching origin from the same variables.
+ */
+export function dataResidencyOrigin(env = process.env) {
+  const raw = env.COPILOT_GH_HOST || env.GH_HOST;
+  if (!raw) return null;
+
+  let host;
+  try {
+    host = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : `https://${raw}`).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+
+  if (!GHE_HOST_PATTERN.test(host)) return null;
+  return `https://copilot-api.${host}`;
+}
+
 /**
  * @param {object} options
  * @param {string} [options.explicit]  Origin set by hand: skips detection.

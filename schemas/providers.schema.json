@@ -88,6 +88,11 @@
         "bearerTokenEnv": {
           "$ref": "#/$defs/envNames"
         },
+        "apiKeyCommand": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Command the Copilot CLI runs to obtain a fresh credential (legacy mode, COPILOT_PROVIDER_API_KEY_COMMAND). It is passed through, never executed by this tool."
+        },
         "modelsUrl": {
           "type": "string",
           "format": "uri",

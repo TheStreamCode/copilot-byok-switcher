@@ -308,6 +308,54 @@ test('rejects invalid additive provider option values', async () => {
   await assert.rejects(() => loadConfigFromPath(configPath, {}), /modelIncludePrefixes|transport|authRequired|modelsAuth/);
 });
 
+test('normalizes a rotating credential command', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'copilot-byok-'));
+  const configPath = join(dir, 'providers.json');
+  await writeFile(configPath, JSON.stringify({
+    providers: [{
+      id: 'gateway',
+      name: 'Gateway',
+      baseUrl: 'https://gateway.example.com/v1',
+      apiKeyCommand: '  vault read -field=key secret/llm  ',
+    }],
+  }));
+
+  const provider = (await loadConfigFromPath(configPath, {})).providers[0];
+  assert.equal(provider.apiKeyCommand, 'vault read -field=key secret/llm');
+  assert.equal(provider.apiKey, null, 'the command is passed through, never executed here');
+});
+
+test('rejects a non-boolean reasoningEffortPicker', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'copilot-byok-'));
+  const configPath = join(dir, 'providers.json');
+  await writeFile(configPath, JSON.stringify({
+    providers: [{
+      id: 'picker',
+      name: 'Picker',
+      baseUrl: 'https://api.example.com/v1',
+      reasoningEffortPicker: 'yes',
+      models: [{ model: 'm', reasoning: true, reasoningEffortPicker: 1 }],
+    }],
+  }));
+
+  await assert.rejects(() => loadConfigFromPath(configPath, {}), /reasoningEffortPicker must be a boolean/);
+});
+
+test('rejects header values with line breaks', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'copilot-byok-'));
+  const configPath = join(dir, 'providers.json');
+  await writeFile(configPath, JSON.stringify({
+    providers: [{
+      id: 'header-injection',
+      name: 'Header Injection',
+      baseUrl: 'https://api.example.com/v1',
+      headers: { 'X-Team': 'a\nX-Admin: true' },
+    }],
+  }));
+
+  await assert.rejects(() => loadConfigFromPath(configPath, {}), /must not contain line breaks/);
+});
+
 test('rejects an OpenAI wire API override on Anthropic providers', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'copilot-byok-'));
   const configPath = join(dir, 'providers.json');

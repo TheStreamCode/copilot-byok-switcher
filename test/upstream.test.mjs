@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createUpstreamResolver, UPSTREAM_CANDIDATES } from '../src/upstream.mjs';
+import { createUpstreamResolver, dataResidencyOrigin, UPSTREAM_CANDIDATES } from '../src/upstream.mjs';
 
 test('an explicit origin skips detection entirely', async () => {
   let calls = 0;
@@ -84,4 +84,27 @@ test('a definitive rejection from every candidate is cached', async () => {
   await resolver.resolve('Bearer t');
 
   assert.equal(calls, UPSTREAM_CANDIDATES.length, 'the servers answered, so there is nothing to retry');
+});
+
+test('a data residency tenant derives its Copilot API origin', () => {
+  assert.equal(
+    dataResidencyOrigin({ COPILOT_GH_HOST: 'acme.ghe.com' }),
+    'https://copilot-api.acme.ghe.com',
+  );
+  assert.equal(
+    dataResidencyOrigin({ GH_HOST: 'https://acme.ghe.com/' }),
+    'https://copilot-api.acme.ghe.com',
+  );
+  assert.equal(
+    dataResidencyOrigin({ COPILOT_GH_HOST: 'acme.ghe.com', GH_HOST: 'github.com' }),
+    'https://copilot-api.acme.ghe.com',
+    'COPILOT_GH_HOST wins over GH_HOST',
+  );
+});
+
+test('ordinary GitHub hosts do not trigger data residency detection', () => {
+  assert.equal(dataResidencyOrigin({ GH_HOST: 'github.com' }), null);
+  assert.equal(dataResidencyOrigin({ GH_HOST: 'ghe.com' }), null);
+  assert.equal(dataResidencyOrigin({ GH_HOST: 'acme.ghe.com.example.com' }), null);
+  assert.equal(dataResidencyOrigin({}), null);
 });

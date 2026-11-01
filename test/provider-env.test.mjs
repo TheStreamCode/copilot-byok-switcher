@@ -18,8 +18,8 @@ test('separates Copilot catalog model from provider wire model', () => {
   assert.equal(env.COPILOT_PROVIDER_BASE_URL, 'https://llm.chutes.ai/v1');
   assert.equal(env.COPILOT_PROVIDER_API_KEY, 'secret');
   assert.equal(env.COPILOT_MODEL, 'gpt-4.1');
+  assert.equal(env.COPILOT_PROVIDER_MODEL_ID, 'gpt-4.1');
   assert.equal(env.COPILOT_PROVIDER_WIRE_MODEL, 'moonshotai/Kimi-K2.6-TEE');
-  assert.equal(Object.hasOwn(env, 'COPILOT_PROVIDER_MODEL_ID'), false);
 });
 
 test('passes explicit token limits when configured', () => {
@@ -72,4 +72,20 @@ test('prefers bearer authentication and passes transport-specific settings', () 
   assert.equal(Object.hasOwn(env, 'COPILOT_PROVIDER_API_KEY'), false);
   assert.equal(env.COPILOT_PROVIDER_TRANSPORT, 'websockets');
   assert.equal(env.COPILOT_PROVIDER_AZURE_API_VERSION, '2025-04-01-preview');
+});
+
+test('passes gateway headers and a rotating credential command', () => {
+  const env = buildProviderEnvironment({
+    provider: {
+      type: 'openai',
+      baseUrl: 'https://gateway.example.com/v1',
+      apiKey: 'secret',
+      apiKeyCommand: 'vault read -field=key secret/llm',
+      headers: { 'X-Tenant': 'team-a', 'X-Project': 'copilot' },
+    },
+    wireModel: 'custom-model',
+  });
+
+  assert.equal(env.COPILOT_PROVIDER_API_KEY_COMMAND, 'vault read -field=key secret/llm');
+  assert.equal(env.COPILOT_PROVIDER_HEADERS, 'X-Tenant: team-a\nX-Project: copilot');
 });
