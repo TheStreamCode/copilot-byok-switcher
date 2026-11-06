@@ -62,11 +62,10 @@ copilot-byok -- -p "fix the failing test" --allow-all-tools
   never reach the Copilot process; in native mode they are written only to a temporary file with
   owner-only permissions and removed when the session ends.
 - No TLS interception: the router binds to loopback and exits with the session.
-- Windows, macOS and Linux are supported with Node.js only, with no build step.
 
 ## Requirements
 
-- Node.js 22.13 or newer.
+- Node.js 22.13 or newer on Windows, macOS, or Linux; no build step.
 - GitHub Copilot CLI 1.0.79 or newer, available as `copilot` on `PATH` (set `COPILOT_BIN` to
   override). The current release line, 1.0.105, is the version this project is verified against;
   `--native-byok` needs a CLI that reads `providers.json`, which 1.0.105 does.
